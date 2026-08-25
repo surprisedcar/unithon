@@ -11,4 +11,9 @@ public class StudentAuthController {
     public StudentVerifyResponse verify(@Valid @RequestBody StudentVerifyRequest request) {
         return studentAuthService.verify(request);
     }
+
+    @PostMapping("/login")
+    public StudentVerifyResponse login(@Valid @RequestBody StudentLoginRequest request) {
+        return studentAuthService.login(request);
+    }
 }

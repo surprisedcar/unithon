@@ -147,7 +147,9 @@ function AppLoginScreen({ onNext }: { onNext: (student: StudentInfo) => void }) 
       onNext(student)
     } catch (cause) {
       console.error("학생 인증 실패", cause)
-      setError(cause instanceof Error ? cause.message : "학생 인증에 실패했습니다.")
+      setError(cause instanceof TypeError
+        ? "학생 정보를 불러오지 못했습니다."
+        : "아이디 또는 비밀번호가 올바르지 않습니다.")
     } finally { setLoading(false) }
   }
 
@@ -388,7 +390,7 @@ function AppConsentScreen({ onNext }: { onNext: () => void }) {
   )
 }
 
-function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+function HomeScreen({ onNavigate, student }: { onNavigate: (s: Screen) => void; student: StudentInfo }) {
   const [showNotif, setShowNotif] = useState(false)
 
   return (
@@ -397,10 +399,10 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 font-medium tracking-wide">
-              숭실대학교 · 소프트웨어학부 3학년
+              {student.university.name} · {student.studentNumber}
             </p>
             <h1 className="text-lg font-bold text-gray-900 mt-0.5">
-              안녕하세요, 정유채님 👋
+              안녕하세요, {student.name}님 👋
             </h1>
           </div>
 
@@ -752,7 +754,7 @@ function HowItWorksScreen({ onBack }: { onBack: () => void }) {
   )
 }
 
-function ProfileScreen({ onBack }: { onBack?: () => void }) {
+function ProfileScreen({ onBack, student }: { onBack?: () => void; student: StudentInfo }) {
   const [consent, setConsent] = useState(true)
   const [pushNotif, setPushNotif] = useState(true)
 
@@ -765,13 +767,11 @@ function ProfileScreen({ onBack }: { onBack?: () => void }) {
 
       <div className="flex-1 px-5 py-5 space-y-4">
         <div className="bg-white rounded-2xl p-5 border border-gray-100">
-          <p className="font-bold text-gray-900">김지수</p>
+          <p className="font-bold text-gray-900">{student.name}</p>
 
-          <p className="text-xs text-gray-400 mt-1">
-            2023123456 · 컴퓨터공학과
-          </p>
+          <p className="text-xs text-gray-400 mt-1">{student.studentNumber}</p>
 
-          <p className="text-xs text-gray-400">한국대학교</p>
+          <p className="text-xs text-gray-400">{student.university.name}</p>
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-gray-100">
@@ -874,7 +874,7 @@ export default function StudentPage() {
 
     switch (tab) {
       case "home":
-        return <HomeScreen onNavigate={handleNavigate} />
+        return <HomeScreen onNavigate={handleNavigate} student={student!} />
 
       case "hospitals":
         return <HospitalsScreen onBack={goHome} />
@@ -883,7 +883,7 @@ export default function StudentPage() {
         return <HistoryScreen studentId={student!.studentId} onBack={goHome} />
 
       case "profile":
-        return <ProfileScreen onBack={goHome} />
+        return <ProfileScreen onBack={goHome} student={student!} />
     }
   }
 
