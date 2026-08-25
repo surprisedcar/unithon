@@ -1,0 +1,10 @@
+{
+  "description": "Create a virtual school homepage that offers students and parents easy access to information, resources, and updates about school activities and events.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
