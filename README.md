@@ -213,9 +213,9 @@ PostgreSQL
 
 ## 8. Implemented
 
-현재까지 구현된 기능:
+현재까지 구현 및 실제 동작 검증이 완료된 기능:
 
-```text id="1qj7o9"
+```text
 ✅ Spring Boot 프로젝트 기본 구조
 ✅ Java 21 개발 환경
 ✅ Gradle Wrapper
@@ -224,6 +224,7 @@ PostgreSQL
 ✅ Bean Validation
 ✅ PostgreSQL Docker Compose
 ✅ Database 연결 설정
+
 ✅ University Entity
 ✅ Student Entity
 ✅ Hospital Entity
@@ -231,62 +232,102 @@ PostgreSQL
 ✅ Visit Entity
 ✅ QrTokenStatus Enum
 ✅ VisitStatus Enum
+
 ✅ JPA Repository 기본 구조
-✅ 공통 예외 처리 기본 구조
+✅ 공통 예외 처리
+✅ 개발용 Seed Data
+
 ✅ Health Check API
+✅ 학생 Mock 인증 API
+✅ QR Token 생성 API
+✅ QR Token 검증 API
+✅ Visit 생성 API
+✅ Visit 단건 조회 API
+✅ 학생 Visit 목록 조회 API
+
+✅ QR Token 1회 사용 처리
+✅ QR Token 중복 사용 방지
+✅ Visit 생성 + QR Token USED 변경 Transaction 처리
+
 ✅ Gradle Build 검증
 ✅ Spring Boot 실행 검증
+✅ PostgreSQL 실제 연동 테스트
+✅ Core API 전체 시나리오 테스트
 ```
 
-Health Check:
+현재 구현된 API:
 
-```http id="791376"
-GET /api/v1/health
+```http
+GET  /api/v1/health
+
+POST /api/v1/auth/students/verify
+
+POST /api/v1/hospitals/{hospitalId}/qr-tokens
+GET  /api/v1/qr-tokens/{token}
+
+POST /api/v1/visits
+GET  /api/v1/visits/{visitId}
+GET  /api/v1/students/{studentId}/visits
 ```
 
-현재 실제 동작 확인 완료:
+현재 실제 동작 확인 완료 흐름:
 
-```text id="cx15gx"
+```text
 Docker PostgreSQL 실행
         ↓
 Spring Boot 실행
         ↓
-GET /api/v1/health
+학생 Mock 인증
         ↓
-{"status":"UP"}
+QR Token 생성
+        ↓
+QR Token 검증
+        ↓
+Visit 생성
+        ↓
+WAITING_HOSPITAL_CONFIRMATION
+        ↓
+Visit 단건 조회
+        ↓
+학생 Visit 목록 조회
+        ↓
+동일 QR Token 재사용 시도
+        ↓
+409 Conflict
 ```
 
 ---
 
 ## 9. Not Implemented Yet
 
-아직 구현하지 않은 기능:
+현재 남아 있는 Backend 기능:
 
-```text id="djxa4g"
-⬜ 개발용 Seed Data
-⬜ 학생 Mock 인증
-⬜ QR Token 생성
-⬜ QR Token 검증
-⬜ Visit 생성
-⬜ Visit 상세 조회
-⬜ 학생 Visit 목록 조회
+```text
 ⬜ 병원 Visit 목록 조회
 ⬜ 병원 진료 완료 처리
 ⬜ 학교 전달 처리
 ⬜ 학교 Visit 목록 조회
 ⬜ 보건결석 처리 완료
+```
+
+아직 구현하지 않는 기능:
+
+```text
 ⬜ Frontend 연동
 ⬜ 실제 대학 SSO
 ⬜ 실제 병원 EMR 연동
+⬜ 실제 학교 학사 시스템 연동
+⬜ 실제 병원 관계자 인증
+⬜ 실제 학교 관계자 인증
 ```
 
 ---
 
-## 10. Planned Backend Flow
+## 10. Current Backend Flow
 
-향후 Backend 구현 목표:
+현재까지 실제 구현된 흐름:
 
-```text id="wz2t5v"
+```text
 학생 Mock 인증
         ↓
 QR Token 생성
@@ -298,6 +339,12 @@ QR Token 검증
 Visit 생성
         ↓
 WAITING_HOSPITAL_CONFIRMATION
+```
+
+현재 `Visit` 생성 이후의 상태 처리 기능은 다음 작업에서 구현한다.
+
+```text
+WAITING_HOSPITAL_CONFIRMATION
         ↓
 병원 진료 완료
         ↓
@@ -307,18 +354,49 @@ VISIT_CONFIRMED
         ↓
 SENT_TO_UNIVERSITY
         ↓
-학교 처리
+학교 처리 완료
         ↓
 COMPLETED
 ```
 
+최종 Backend MVP 목표:
+
+```text
+QR
+→ 학생 인증
+→ QR 검증
+→ Visit 생성
+→ 병원 진료 완료
+→ 학교 전달
+→ 보건결석 처리 완료
+```
+
 ---
 
-## 11. Development Documents
+## 11. Core API Test Result
+
+현재 Core API는 PostgreSQL과 실제로 연결하여 다음 시나리오를 검증했습니다.
+
+```text
+1. Student Verify 성공
+2. QR Token 생성 성공
+3. QR Token 검증 성공
+4. Visit 생성 성공
+5. Visit 상태 WAITING_HOSPITAL_CONFIRMATION 확인
+6. Visit 단건 조회 성공
+7. 학생 Visit 목록 조회 성공
+8. 동일 QR Token 재사용 시 409 Conflict 확인
+```
+
+QR Token은 한 번 Visit 생성에 사용되면 `USED` 상태로 변경되며 동일 Token으로 두 번째 Visit을 생성할 수 없습니다.
+
+---
+
+## 12. Development Documents
 
 상세 설계는 다음 문서를 기준으로 합니다.
 
-```text id="bu3i2r"
+```text
 docs/architecture.md
 docs/db-schema.md
 docs/api.md
