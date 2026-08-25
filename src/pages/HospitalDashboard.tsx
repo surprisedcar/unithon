@@ -116,7 +116,7 @@ export default function HospitalDashboard({
           <div className="w-9 h-9 bg-slate-700 text-white rounded-lg flex items-center justify-center font-bold">H</div>
           <div>
             <h1 className="text-base font-semibold">병원 연계 관리 시스템</h1>
-            <p className="text-xs text-gray-400">보건결석 진료 인증 관리</p>
+            <p className="text-xs text-gray-400">유고결석 진료 인증 관리</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -139,8 +139,8 @@ export default function HospitalDashboard({
 
         {error && <div className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          {(["WAITING", "TREATMENT_COMPLETED", "SENT"] as const).map((status) => (
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          {(["WAITING", "TREATMENT_COMPLETED"] as const).map((status) => (
             <div key={status} className="bg-white border border-gray-200 rounded-xl px-5 py-4">
               <p className="text-sm text-gray-500">{statusLabel[status]}</p>
               <p className="text-2xl font-semibold mt-2">{counts[status]}</p>
@@ -207,6 +207,8 @@ export default function HospitalDashboard({
                 <div className="border-t border-gray-100 pt-5">
                   {selectedVisit.status === "WAITING" ? (
                     <button onClick={() => void handleCompleteTreatment()} className="w-full bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-lg text-sm font-medium">진료 완료</button>
+                  ) : selectedVisit.status === "TREATMENT_COMPLETED" ? (
+                    <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">진료 완료 · 학교 승인 대기</div>
                   ) : (
                     <div className="bg-green-50 border border-green-100 rounded-lg px-4 py-3 text-sm font-medium text-green-700">✓ 학교 전송 완료</div>
                   )}

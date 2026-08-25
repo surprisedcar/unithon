@@ -37,11 +37,13 @@ export default function QRScanner({ onBack, onDetected }: {
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const rafRef = useRef<number>(0)
   const streamRef = useRef<MediaStream | null>(null)
 
   const [scanState, setScanState] = useState<ScanState>("requesting")
   const [detected, setDetected] = useState<HospitalQRData | null>(null)
+  const [uploadError, setUploadError] = useState("")
 
   useEffect(() => {
     let cancelled = false
@@ -115,6 +117,41 @@ export default function QRScanner({ onBack, onDetected }: {
     setScanState("detected")
     setDetected(data)
     stopCamera()
+  }
+
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    if (!file) return
+
+    setUploadError("")
+    try {
+      const bitmap = await createImageBitmap(file)
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext("2d")
+      if (!canvas || !ctx) throw new Error("이미지를 처리할 수 없습니다.")
+
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      ctx.drawImage(bitmap, 0, 0)
+      bitmap.close()
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(imageData.data, imageData.width, imageData.height)
+      const data = code ? parseQR(code.data) : null
+      if (!data) {
+        setUploadError("사진에서 AutoMedi QR 코드를 찾지 못했습니다.")
+        return
+      }
+
+      stopCamera()
+      setDetected(data)
+      setScanState("detected")
+    } catch {
+      setUploadError("이미지를 읽지 못했습니다. 다른 사진을 선택해 주세요.")
+    } finally {
+      input.value = ""
+    }
   }
 
   if (detected && scanState === "detected") {
@@ -232,6 +269,25 @@ export default function QRScanner({ onBack, onDetected }: {
 
       {/* Bottom bar */}
       <div className="absolute bottom-0 inset-x-0 z-10 px-6 pb-10 pt-6 bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center gap-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-white py-3.5 text-sm font-bold text-gray-900 hover:bg-gray-100 transition-colors"
+        >
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <path d="m21 15-5-5L5 21" />
+          </svg>
+          QR 사진 업로드
+        </button>
+        {uploadError && <p className="rounded-lg bg-red-500/20 px-3 py-2 text-center text-xs font-medium text-red-100">{uploadError}</p>}
         {(scanState === "scanning" || scanState === "error") && (
           <button
             onClick={simulateScan}

@@ -236,10 +236,6 @@ public class AutoMediService {
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         visit.completeTreatment(now);
-        visit.markSent(now);
-        Student student = students.get(visit.studentId());
-        Hospital hospital = hospitals.get(visit.hospitalId());
-        notices.add(new Notice(UUID.randomUUID().toString(), student.id(), "보건결석 처리 완료", hospital.name() + " 진료 기록이 학교에 전달되었습니다.", now));
         return toVisitResponse(visit);
     }
 

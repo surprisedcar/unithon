@@ -93,7 +93,7 @@ function LandingScreen({ onNext, context }: { onNext: () => void; context: QrCon
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 leading-snug mb-3">
-          진료만 받으면<br />보건결석이<br />자동으로 처리됩니다
+          진료만 받으면<br />유고결석이<br />자동으로 처리됩니다
         </h1>
         <p className="text-sm text-gray-500 leading-relaxed">
           {context.hospitalName}과 연계된 서비스입니다.<br />
@@ -143,6 +143,22 @@ function LoginScreen({ onVerify }: { onVerify: (studentNumber: string, name: str
       await onVerify(studentId, name);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "학생 인증에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePortalConnect = async () => {
+    const demoStudentNumber = "2023123456";
+    const demoStudentName = "김지수";
+    setStudentId(demoStudentNumber);
+    setName(demoStudentName);
+    setLoading(true);
+    setError("");
+    try {
+      await onVerify(demoStudentNumber, demoStudentName);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "학교 포털 연동에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -209,13 +225,18 @@ function LoginScreen({ onVerify }: { onVerify: (studentNumber: string, name: str
             <span className="font-medium">또는</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
-          <button className="w-full mt-4 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
+          <button
+            onClick={handlePortalConnect}
+            disabled={loading}
+            className="w-full mt-4 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 transition-colors"
+          >
             <svg className="w-4 h-4 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
-            학교 포털 계정으로 연동
+            {loading ? "학교 포털 확인 중…" : "학교 포털 계정으로 연동 (테스트)"}
           </button>
+          <p className="mt-2 text-center text-[11px] text-gray-400">시연 계정의 재학 정보를 자동으로 불러옵니다.</p>
         </div>
       </div>
 
@@ -370,16 +391,30 @@ function ConsentScreen({ onSubmit, context }: { onSubmit: () => Promise<void>; c
 const PROCESS_STEPS = [
   { label: "접수완료", sublabel: "2026.08.24 09:15" },
   { label: "진료중", sublabel: "담당 의사 배정됨" },
-  { label: "인증대기", sublabel: "진료 후 자동 전송" },
-  { label: "처리완료", sublabel: "학교 시스템 반영" },
+  { label: "학교 승인 대기", sublabel: "진료 완료 확인됨" },
+  { label: "전송완료", sublabel: "학교 승인 후 반영" },
 ];
 
-function WaitingScreen({ visit }: { visit: Visit }) {
-  const [activeStep] = useState(1); // "진료중" is current
+function WaitingScreen({ visit, onHome }: { visit: Visit; onHome: () => void }) {
+  const activeStep = visit.status === "TREATMENT_COMPLETED" ? 2 : 1;
+  const treatmentCompleted = visit.status === "TREATMENT_COMPLETED";
 
   return (
     <div className="flex flex-col min-h-full bg-[#f7f9fc]">
       <ProgressStepper step="waiting" />
+
+      <div className="flex items-center justify-between border-b border-gray-100 bg-white px-6 py-3">
+        <div>
+          <p className="text-xs font-medium text-gray-400">진료 진행 상태</p>
+          <p className="text-sm font-bold text-gray-900">{visit.hospitalName}</p>
+        </div>
+        <button
+          onClick={onHome}
+          className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50"
+        >
+          홈
+        </button>
+      </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-8">
         <div className="text-center mb-10">
@@ -389,9 +424,11 @@ function WaitingScreen({ visit }: { visit: Visit }) {
               <polyline points="12 6 12 12 16 14" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">접수가 완료되었습니다</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">{treatmentCompleted ? "진료가 완료되었습니다" : "접수가 완료되었습니다"}</h1>
           <p className="text-sm text-gray-500 leading-relaxed">
-            {visit.hospitalName}에서 진료를 받으세요.<br />진료 완료 상태를 자동으로 확인합니다.
+            {treatmentCompleted
+              ? "학교 승인 기능이 연결될 때까지 승인 대기 상태로 유지됩니다."
+              : <>{visit.hospitalName}에서 진료를 받으세요.<br />진료 완료 상태를 자동으로 확인합니다.</>}
           </p>
           <p className="mt-3 text-xs font-semibold text-brand-600">연계 ID {visit.linkId}</p>
         </div>
@@ -442,11 +479,23 @@ function WaitingScreen({ visit }: { visit: Visit }) {
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <p className="text-xs text-brand-700 leading-relaxed">
-            이 창을 닫아도 괜찮습니다. 진료 완료 후 앱 알림으로 처리 완료를 알려드립니다.
+            {treatmentCompleted
+              ? "현재는 병원 진료 완료까지만 처리되며 학교 전송은 진행되지 않습니다."
+              : "이 창을 닫아도 괜찮습니다. 병원에서 진료 완료 처리하면 상태가 갱신됩니다."}
           </p>
         </div>
 
-        <p className="mt-6 text-center text-xs text-gray-400">병원에서 진료 완료 처리하면 이 화면이 자동으로 변경됩니다.</p>
+        <p className="mt-6 text-center text-xs text-gray-400">{treatmentCompleted ? "학교 승인 기능은 아직 제공되지 않습니다." : "병원에서 진료 완료 처리하면 이 화면이 자동으로 변경됩니다."}</p>
+      </div>
+
+      <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+        <button
+          onClick={onHome}
+          className="w-full bg-white border border-gray-200 hover:bg-gray-50 active:scale-[0.98] text-gray-700 font-bold text-base py-4 rounded-2xl transition-all"
+        >
+          홈으로 나가기
+        </button>
+        <p className="mt-2 text-center text-[11px] text-gray-400">진료 진행 상태는 저장되며 홈에서 다시 확인할 수 있습니다.</p>
       </div>
     </div>
   );
@@ -474,7 +523,7 @@ function CompleteScreen({ onClose, visit }: { onClose: () => void; visit: Visit 
         <h1
           className={`text-2xl font-bold text-gray-900 text-center mb-2 transition-all duration-500 delay-150 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
         >
-          보건결석 처리가<br />완료되었습니다
+          유고결석 처리가<br />완료되었습니다
         </h1>
         <p className={`text-sm text-gray-500 text-center mb-8 transition-all duration-500 delay-200 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>
           서류 제출 없이 자동으로 처리되었습니다.
@@ -493,7 +542,7 @@ function CompleteScreen({ onClose, visit }: { onClose: () => void; visit: Visit 
             { label: "진료일자", value: new Date(visit.checkedInAt).toLocaleDateString("ko-KR") },
             { label: "처리 시각", value: visit.sentAt ? new Date(visit.sentAt).toLocaleString("ko-KR") : "처리 완료" },
             { label: "연계 ID", value: visit.linkId },
-            { label: "처리 상태", value: "보건결석 승인 완료" },
+            { label: "처리 상태", value: "유고결석 승인 완료" },
           ].map((row) => (
             <div key={row.label} className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50 last:border-0">
               <span className="text-xs text-gray-400">{row.label}</span>
@@ -532,19 +581,29 @@ export default function QRFlow({
   onClose,
   onComplete,
   qrToken,
+  initialVisit,
+  onVisitChange,
 }: {
   onClose: () => void;
   onComplete?: () => void;
   qrToken?: string;
+  initialVisit?: Visit;
+  onVisitChange?: (visit: Visit) => void;
 }) {
-  const [step, setStep] = useState<FlowStep>("landing");
+  const [step, setStep] = useState<FlowStep>(initialVisit ? "waiting" : "landing");
   const [activeToken, setActiveToken] = useState(qrToken);
-  const [scanning, setScanning] = useState(!qrToken);
-  const [context, setContext] = useState<QrContext | null>(null);
+  const [scanning, setScanning] = useState(!qrToken && !initialVisit);
+  const [context, setContext] = useState<QrContext | null>(initialVisit ? {
+    hospitalId: initialVisit.hospitalId,
+    hospitalName: initialVisit.hospitalName,
+    affiliated: true,
+    status: "USED",
+    expiresAt: initialVisit.checkedInAt,
+  } : null);
   const [verificationId, setVerificationId] = useState("");
-  const [visit, setVisit] = useState<Visit | null>(null);
+  const [visit, setVisit] = useState<Visit | null>(initialVisit ?? null);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialVisit);
 
   useEffect(() => {
     if (!activeToken) {
@@ -566,6 +625,7 @@ export default function QRFlow({
       getVisit(visit.visitId)
         .then((updated) => {
           setVisit(updated);
+          onVisitChange?.(updated);
           if (updated.status === "SENT") setStep("complete");
         })
         .catch(() => undefined);
@@ -591,6 +651,7 @@ export default function QRFlow({
     if (!activeToken || !verificationId) throw new Error("학생 인증 정보가 없습니다.");
     const response = await createVisit(activeToken, verificationId);
     setVisit(response);
+    onVisitChange?.(response);
     setStep("waiting");
   };
 
@@ -637,7 +698,7 @@ export default function QRFlow({
       {step === "landing" && <LandingScreen onNext={next} context={context} />}
       {step === "login" && <LoginScreen onVerify={handleVerifyStudent} />}
       {step === "consent" && <ConsentScreen onSubmit={handleCreateVisit} context={context} />}
-      {step === "waiting" && visit && <WaitingScreen visit={visit} />}
+      {step === "waiting" && visit && <WaitingScreen visit={visit} onHome={onClose} />}
       {step === "complete" && visit && <CompleteScreen onClose={handleClose} visit={visit} />}
     </div>
   );

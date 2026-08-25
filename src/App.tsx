@@ -3,8 +3,26 @@ import StudentPage from "./pages/StudentPage"
 import HospitalDashboard from "./pages/HospitalDashboard"
 import { login, type AuthSession } from "./api"
 
+const SESSION_KEY = "automedi.auth.session"
+
+function restoreSession(): AuthSession | null {
+  try {
+    const stored = window.sessionStorage.getItem(SESSION_KEY)
+    if (!stored) return null
+    const session = JSON.parse(stored) as AuthSession
+    if (!session.accessToken || !session.user?.id || !["STUDENT", "HOSPITAL"].includes(session.user.role)) {
+      window.sessionStorage.removeItem(SESSION_KEY)
+      return null
+    }
+    return session
+  } catch {
+    window.sessionStorage.removeItem(SESSION_KEY)
+    return null
+  }
+}
+
 function App() {
-  const [session, setSession] = useState<AuthSession | null>(null)
+  const [session, setSession] = useState<AuthSession | null>(restoreSession)
   const [id, setId] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -16,7 +34,9 @@ function App() {
     setError("")
     setLoading(true)
     try {
-      setSession(await login(id, password))
+      const nextSession = await login(id, password)
+      window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(nextSession))
+      setSession(nextSession)
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "로그인에 실패했습니다.")
     } finally {
@@ -25,6 +45,7 @@ function App() {
   }
 
   const logout = () => {
+    window.sessionStorage.removeItem(SESSION_KEY)
     setSession(null)
     setPassword("")
   }

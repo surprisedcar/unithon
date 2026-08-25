@@ -51,12 +51,19 @@ class AutoMediApiTest {
             .andReturn().getResponse().getContentAsString();
         String verificationId = objectMapper.readTree(verificationBody).get("verificationId").asText();
 
-        mockMvc.perform(post("/api/v1/visits")
+        String visitBody = mockMvc.perform(post("/api/v1/visits")
                 .header("Idempotency-Key", "test-visit-1")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"qrToken\":\"" + qr.get("token").asText() + "\",\"studentVerificationId\":\"" + verificationId + "\",\"consent\":{\"agreed\":true,\"termsVersion\":\"2026-08-01\"}}"))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.status").value("WAITING"));
+            .andExpect(jsonPath("$.status").value("WAITING"))
+            .andReturn().getResponse().getContentAsString();
+        String visitId = objectMapper.readTree(visitBody).get("visitId").asText();
+
+        mockMvc.perform(post("/api/v1/hospital/visits/{visitId}/complete-treatment", visitId)
+                .header("Authorization", "Bearer " + accessToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("TREATMENT_COMPLETED"));
 
         mockMvc.perform(get("/api/v1/qr-tokens/{token}", qr.get("token").asText()))
             .andExpect(status().isConflict())
