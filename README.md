@@ -1,3 +1,52 @@
+## 🚀 Current Development Status
+
+> Branch: `feature/visit-processing`
+
+현재 백엔드는 **학생 인증 → QR 발급 → 병원 진료 확인 → 학교 전달 → 보건결석 처리 완료**까지의 MVP 전체 흐름이 구현되어 있습니다.
+
+### 구현 완료
+
+- 학생 Mock 인증
+- QR Token 생성 및 검증
+- QR Token 1회 사용 및 중복 사용 방지
+- Visit 생성 및 조회
+- 학생별 Visit 목록 조회
+- 병원별 Visit 목록 조회
+- 병원 진료 완료 처리
+- 학교 전달 처리
+- 학교별 Visit 목록 조회
+- 학교 처리 완료
+- Visit 상태 전이 검증
+- 잘못된 상태 전이 `409 Conflict` 처리
+- PostgreSQL 연동
+- Service Transaction 처리
+- 상태 변경 시 비관적 Lock을 통한 중복 처리 방지
+
+### Visit 처리 흐름
+
+```text
+학생 인증
+    ↓
+QR Token 생성
+    ↓
+QR Token 검증
+    ↓
+Visit 생성
+    ↓
+WAITING_HOSPITAL_CONFIRMATION
+    ↓
+병원 진료 완료
+    ↓
+VISIT_CONFIRMED
+    ↓
+학교 전달
+    ↓
+SENT_TO_UNIVERSITY
+    ↓
+학교 처리 완료
+    ↓
+COMPLETED
+
 ## Backend Development Guide
 
 현재 백엔드는 Spring Boot 기반 기본 실행 환경까지 구현되어 있습니다.
