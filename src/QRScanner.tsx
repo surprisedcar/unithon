@@ -6,9 +6,18 @@ type ScanState = "requesting" | "scanning" | "detected" | "error"
 interface HospitalQRData {
   hospital: string
   code: string
+  token?: string
 }
 
 function parseQR(raw: string): HospitalQRData | null {
+  try {
+    const url = new URL(raw, window.location.origin)
+    const token = url.searchParams.get("qrToken") ?? url.searchParams.get("token")
+    if (token) return { hospital: "제휴 병원", code: "", token }
+  } catch {
+    // JSON 형식도 이어서 확인합니다.
+  }
+
   try {
     const parsed = JSON.parse(raw)
     if (parsed.hospital && parsed.code) return parsed
