@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { confirmHospitalVisit, createQrToken, getHospitalVisits } from "../api/hospitalApi"
 import { sendToUniversity, type VisitStatus as ApiVisitStatus } from "../api/visitApi"
 
@@ -7,6 +7,7 @@ type Period = "오늘" | "이번주"
 type Tab = "sessions" | "qr"
 
 const HOSPITAL_ID = Number(import.meta.env.VITE_HOSPITAL_ID || 1)
+const VISIT_POLL_INTERVAL_MS = 2500
 
 function toUiStatus(status: ApiVisitStatus): VisitStatus {
   if (status === "WAITING_HOSPITAL_CONFIRMATION") return "대기중"
@@ -121,12 +122,18 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
   const [hospitalName, setHospitalName] = useState("유니톤의원")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [visitError, setVisitError] = useState("")
+  const requestInFlightRef = useRef(false)
+  const mountedRef = useRef(false)
 
-  const loadVisits = async () => {
-    setLoading(true)
+  const loadVisits = useCallback(async (showLoading = false, showError = true) => {
+    if (requestInFlightRef.current) return
+    requestInFlightRef.current = true
+    if (showLoading && mountedRef.current) setLoading(true)
     try {
       const visits = await getHospitalVisits(HOSPITAL_ID)
-      setSessions(visits.map((visit) => ({
+      if (!mountedRef.current) return
+      const nextSessions = visits.map((visit) => ({
         id: visit.visitId,
         studentName: visit.studentName,
         studentId: visit.studentNumber,
@@ -134,15 +141,32 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
         checkInTime: new Date(visit.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
         date: new Date(visit.createdAt).toISOString().slice(0, 10),
         status: toUiStatus(visit.status),
-      })))
-      setError("")
+      }))
+      setSessions(nextSessions)
+      setSelectedSession((current) => current
+        ? nextSessions.find((session) => session.id === current.id) || null
+        : null)
+      setVisitError("")
     } catch (cause) {
-      console.error("병원 Visit 목록 조회 실패", cause)
-      setError(cause instanceof Error ? cause.message : "방문 목록을 불러오지 못했습니다.")
-    } finally { setLoading(false) }
-  }
+      if (showError && mountedRef.current) {
+        setVisitError(cause instanceof Error ? cause.message : "방문 목록을 불러오지 못했습니다.")
+      }
+    } finally {
+      requestInFlightRef.current = false
+      if (showLoading && mountedRef.current) setLoading(false)
+    }
+  }, [])
 
-  useEffect(() => { void loadVisits() }, [])
+  useEffect(() => {
+    mountedRef.current = true
+    void loadVisits(true)
+    const pollTimer = window.setInterval(() => void loadVisits(false, false), VISIT_POLL_INTERVAL_MS)
+
+    return () => {
+      mountedRef.current = false
+      window.clearInterval(pollTimer)
+    }
+  }, [loadVisits])
 
   const issueQr = async () => {
     try {
@@ -191,6 +215,7 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
       await confirmHospitalVisit(HOSPITAL_ID, selectedSession.id)
       await sendToUniversity(selectedSession.id)
       await loadVisits()
+      setError("")
       setSelectedSession(null)
     } catch (cause) {
       console.error("진료 완료 처리 실패", cause)
@@ -278,17 +303,26 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
       {activeTab === "sessions" ? (
         <main className="max-w-[1400px] mx-auto px-8 py-8">
           {/* Page Title */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">
-              방문 세션 관리
-            </h2>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900">
+                방문 세션 관리
+              </h2>
 
-            <p className="text-sm text-gray-500 mt-1">
-              QR 연계를 통해 접수된 학생의 방문 세션을 관리합니다.
-            </p>
+              <p className="text-sm text-gray-500 mt-1">
+                QR 연계를 통해 접수된 학생의 방문 세션을 관리합니다.
+              </p>
+            </div>
+            <button
+              onClick={() => void loadVisits(true)}
+              disabled={loading}
+              className="shrink-0 border border-gray-300 bg-white hover:bg-gray-50 disabled:text-gray-400 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 transition-colors"
+            >
+              {loading ? "갱신 중…" : "목록 갱신"}
+            </button>
           </div>
 
-          {error && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+          {(visitError || error) && <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{visitError || error}</div>}
           {loading && <div className="mb-4 text-sm text-gray-500">방문 목록을 불러오는 중입니다…</div>}
 
           {/* Summary */}

@@ -3,9 +3,12 @@ import StudentPage from "./pages/StudentPage";
 import HospitalDashboard from "./pages/HospitalDashboard";
 
 type UserRole = "student" | "hospital" | null;
+const ROLE_STORAGE_KEY = "unwork.userRole";
 
 function App() {
-  const [role, setRole] = useState<UserRole>(null);
+  const [role, setRole] = useState<UserRole>(() =>
+    sessionStorage.getItem(ROLE_STORAGE_KEY) === "hospital" ? "hospital" : null,
+  );
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -15,12 +18,14 @@ function App() {
 
     // 학생 로그인
     if (id === "student" && password === "1234") {
+      sessionStorage.removeItem(ROLE_STORAGE_KEY);
       setRole("student");
       return;
     }
 
     // 병원 로그인
     if (id === "hospital" && password === "1234") {
+      sessionStorage.setItem(ROLE_STORAGE_KEY, "hospital");
       setRole("hospital");
       return;
     }
@@ -35,7 +40,10 @@ function App() {
 
   // 병원용 AutoMedi 시스템
   if (role === "hospital") {
-    return <HospitalDashboard />;
+    return <HospitalDashboard onClose={() => {
+      sessionStorage.removeItem(ROLE_STORAGE_KEY);
+      setRole(null);
+    }} />;
   }
 
   // 로그인 화면
