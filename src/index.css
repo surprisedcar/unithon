@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Noto Sans KR', 'Inter', system-ui, sans-serif;
+  --font-mono: 'Inter', monospace;
+
+  --color-brand-50: #eff8ff;
+  --color-brand-100: #dbeffe;
+  --color-brand-200: #b9e0fd;
+  --color-brand-300: #7cc8fb;
+  --color-brand-400: #37aaf6;
+  --color-brand-500: #0d8ee0;
+  --color-brand-600: #0170bf;
+  --color-brand-700: #01589a;
+  --color-brand-800: #064b7f;
+  --color-brand-900: #0a3f6a;
+
+  --color-mint-50: #edfdf7;
+  --color-mint-100: #d2f9ea;
+  --color-mint-200: #a8f1d4;
+  --color-mint-300: #6ce4b7;
+  --color-mint-400: #2ecf96;
+  --color-mint-500: #10b57e;
+  --color-mint-600: #079267;
+  --color-mint-700: #067454;
+  --color-mint-800: #085c44;
+  --color-mint-900: #074c39;
+
+  --color-surface: #f7f9fc;
+  --color-card: #ffffff;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Noto Sans KR', 'Inter', system-ui, sans-serif;
+}
+
+/* Hide scrollbar while keeping scrollability */
+::-webkit-scrollbar { width: 0; background: transparent; }
+* { scrollbar-width: none; }
+

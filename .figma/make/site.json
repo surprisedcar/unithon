@@ -1,0 +1,10 @@
+{
+  "description": "Streamline health absence management for students by automatically processing medical documentation from partner hospitals, ensuring hassle-free school notifications.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
