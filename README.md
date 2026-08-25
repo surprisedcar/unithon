@@ -51,11 +51,17 @@ school UI are required.
 Create a Render PostgreSQL database and a Web Service with these settings:
 
 ```text
+Language: Docker
+Branch: feature/deployment
+Region: Singapore (use the same region for PostgreSQL)
 Root Directory: backend/spring-server
-Build Command: ./gradlew clean build
-Start Command: java -jar build/libs/health-absence-0.0.1-SNAPSHOT.jar
+Dockerfile Path: ./Dockerfile
 Health Check Path: /api/v1/health
 ```
+
+The Dockerfile uses Java 21 for both the Gradle build stage and the smaller JRE
+runtime stage. Render builds and starts the image from the Dockerfile, so Build
+Command and Start Command are not entered separately.
 
 Set the following environment variables in the Render Web Service. The database
 URL must be a JDBC URL (it starts with `jdbc:postgresql://`), not a `postgres://`
@@ -66,7 +72,6 @@ DATABASE_URL=jdbc:postgresql://<internal-host>:5432/<database>
 DATABASE_USERNAME=<database-user>
 DATABASE_PASSWORD=<database-password>
 FRONTEND_URL=https://<service-project>.vercel.app,https://<school-project>.vercel.app
-JAVA_VERSION=21
 ```
 
 Render supplies `PORT`; the application uses it automatically and falls back to
