@@ -1,0 +1,5 @@
+.gradle/
+.gradle-user-home/
+build/
+.jdk21/
+jdk21*.zip

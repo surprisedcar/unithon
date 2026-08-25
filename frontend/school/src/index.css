@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-navy: #1f3a5f;
+  --color-navy-dark: #162d4a;
+  --color-navy-light: #2a4f7f;
+  --color-surface: #f5f6f8;
+  --color-border: #e2e5ea;
+  --font-sans: 'Noto Sans KR', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  font-family: var(--font-sans);
+}
+
+body {
+  background-color: var(--color-surface);
+}
+
+/* Hide scrollbar until hover */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c1c7d0; border-radius: 3px; opacity: 0; }
+:hover::-webkit-scrollbar-thumb { opacity: 1; }
