@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 
 type VisitStatus = "대기중" | "진료완료" | "전송완료"
 type Period = "오늘" | "이번주"
+type Tab = "sessions" | "qr"
 
 interface VisitSession {
   id: string
@@ -61,7 +62,89 @@ const initialSessions: VisitSession[] = [
   },
 ]
 
+// 실제 서비스에서는 'qrcode.react' 같은 라이브러리로 실제 QR을 생성하되,
+// 여기서는 데모용으로 고정 시드 기반의 QR 모양 패턴을 SVG로 그립니다.
+function generateModules(seed: string, size = 21) {
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  }
+
+  const modules: boolean[][] = []
+  for (let row = 0; row < size; row++) {
+    const rowModules: boolean[] = []
+    for (let col = 0; col < size; col++) {
+      hash = (hash * 1103515245 + 12345) >>> 0
+      rowModules.push((hash >> 16) % 3 === 0)
+    }
+    modules.push(rowModules)
+  }
+  return modules
+}
+
+function QRCode({ value, size = 220 }: { value: string; size?: number }) {
+  const gridSize = 21
+  const modules = useMemo(() => generateModules(value, gridSize), [value])
+  const cell = size / gridSize
+
+  const isFinderZone = (row: number, col: number) => {
+    const inTopLeft = row < 7 && col < 7
+    const inTopRight = row < 7 && col >= gridSize - 7
+    const inBottomLeft = row >= gridSize - 7 && col < 7
+    return inTopLeft || inTopRight || inBottomLeft
+  }
+
+  const Finder = ({ x, y }: { x: number; y: number }) => (
+    <g transform={`translate(${x}, ${y})`}>
+      <rect width={cell * 7} height={cell * 7} fill="#1e293b" rx={cell * 0.8} />
+      <rect
+        x={cell}
+        y={cell}
+        width={cell * 5}
+        height={cell * 5}
+        fill="white"
+        rx={cell * 0.5}
+      />
+      <rect
+        x={cell * 2}
+        y={cell * 2}
+        width={cell * 3}
+        height={cell * 3}
+        fill="#1e293b"
+        rx={cell * 0.3}
+      />
+    </g>
+  )
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
+      <rect width={size} height={size} fill="white" />
+      {modules.map((rowModules, row) =>
+        rowModules.map((filled, col) => {
+          if (!filled || isFinderZone(row, col)) return null
+          return (
+            <rect
+              key={`${row}-${col}`}
+              x={col * cell}
+              y={row * cell}
+              width={cell * 0.9}
+              height={cell * 0.9}
+              fill="#1e293b"
+              rx={cell * 0.15}
+            />
+          )
+        }),
+      )}
+      <Finder x={0} y={0} />
+      <Finder x={size - cell * 7} y={0} />
+      <Finder x={0} y={size - cell * 7} />
+    </svg>
+  )
+}
+
 export default function HospitalDashboard({ onClose }: { onClose?: () => void }) {
+  const [activeTab, setActiveTab] = useState<Tab>("sessions")
+
   const [sessions, setSessions] = useState<VisitSession[]>(initialSessions)
 
   const [selectedSession, setSelectedSession] = useState<VisitSession | null>(
@@ -71,6 +154,9 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
   const [period, setPeriod] = useState<Period>("오늘")
 
   const [search, setSearch] = useState("")
+
+  const qrToken = "HOSPITAL-OO-FIXED-QR-2026"
+  const hospitalName = "OO병원"
 
   const filteredSessions = useMemo(() => {
     return sessions.filter((session) => {
@@ -146,7 +232,7 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
         </div>
 
         <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">OO병원 · 접수 담당자</span>
+          <span className="text-sm text-gray-500">{hospitalName} · 접수 담당자</span>
           {onClose && (
             <button
               onClick={onClose}
@@ -161,229 +247,332 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
         </div>
       </header>
 
-      <main className="max-w-[1400px] mx-auto px-8 py-8">
-        {/* Page Title */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-gray-900">
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200 px-8">
+        <div className="max-w-[1400px] mx-auto flex gap-1">
+          <button
+            onClick={() => setActiveTab("sessions")}
+            className={`relative px-4 py-3.5 text-sm font-medium transition-colors ${
+              activeTab === "sessions"
+                ? "text-slate-800"
+                : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
             방문 세션 관리
-          </h2>
+            {activeTab === "sessions" && (
+              <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-slate-700 rounded-full" />
+            )}
+          </button>
 
-          <p className="text-sm text-gray-500 mt-1">
-            QR 연계를 통해 접수된 학생의 방문 세션을 관리합니다.
-          </p>
+          <button
+            onClick={() => setActiveTab("qr")}
+            className={`relative px-4 py-3.5 text-sm font-medium transition-colors ${
+              activeTab === "qr"
+                ? "text-slate-800"
+                : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            접수 QR
+            {activeTab === "qr" && (
+              <span className="absolute left-0 right-0 -bottom-px h-0.5 bg-slate-700 rounded-full" />
+            )}
+          </button>
         </div>
+      </div>
 
-        {/* Summary */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
-            <p className="text-sm text-gray-500">대기중</p>
+      {activeTab === "sessions" ? (
+        <main className="max-w-[1400px] mx-auto px-8 py-8">
+          {/* Page Title */}
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900">
+              방문 세션 관리
+            </h2>
 
-            <p className="text-2xl font-semibold mt-2">{waitingCount}</p>
+            <p className="text-sm text-gray-500 mt-1">
+              QR 연계를 통해 접수된 학생의 방문 세션을 관리합니다.
+            </p>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
-            <p className="text-sm text-gray-500">진료완료</p>
+          {/* Summary */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
+              <p className="text-sm text-gray-500">대기중</p>
 
-            <p className="text-2xl font-semibold mt-2">{completedCount}</p>
-          </div>
-
-          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
-            <p className="text-sm text-gray-500">전송완료</p>
-
-            <p className="text-2xl font-semibold mt-2">{sentCount}</p>
-          </div>
-        </div>
-
-        {/* Main Layout */}
-        <div className="grid grid-cols-[1fr_380px] gap-6">
-          {/* Left: Table */}
-          <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            {/* Filter */}
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between gap-4">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPeriod("오늘")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    period === "오늘"
-                      ? "bg-slate-700 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  오늘
-                </button>
-
-                <button
-                  onClick={() => setPeriod("이번주")}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                    period === "이번주"
-                      ? "bg-slate-700 text-white"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  이번주
-                </button>
-              </div>
-
-              <div className="relative w-64">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="학생명 또는 연계 ID 검색"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-slate-500"
-                />
-              </div>
+              <p className="text-2xl font-semibold mt-2">{waitingCount}</p>
             </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr className="text-left text-gray-500">
-                    <th className="px-6 py-4 font-medium">학생</th>
+            <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
+              <p className="text-sm text-gray-500">진료완료</p>
 
-                    <th className="px-6 py-4 font-medium">연계 ID</th>
+              <p className="text-2xl font-semibold mt-2">{completedCount}</p>
+            </div>
 
-                    <th className="px-6 py-4 font-medium">접수 시각</th>
+            <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
+              <p className="text-sm text-gray-500">전송완료</p>
 
-                    <th className="px-6 py-4 font-medium">상태</th>
-                  </tr>
-                </thead>
+              <p className="text-2xl font-semibold mt-2">{sentCount}</p>
+            </div>
+          </div>
 
-                <tbody>
-                  {filteredSessions.map((session) => (
-                    <tr
-                      key={session.id}
-                      onClick={() => setSelectedSession(session)}
-                      className={`border-b border-gray-100 cursor-pointer hover:bg-slate-50 ${
-                        selectedSession?.id === session.id ? "bg-slate-50" : ""
-                      }`}
-                    >
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        {session.studentName}
-                      </td>
+          {/* Main Layout */}
+          <div className="grid grid-cols-[1fr_380px] gap-6">
+            {/* Left: Table */}
+            <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              {/* Filter */}
+              <div className="p-5 border-b border-gray-200 flex items-center justify-between gap-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPeriod("오늘")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      period === "오늘"
+                        ? "bg-slate-700 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    오늘
+                  </button>
 
-                      <td className="px-6 py-4 text-gray-500 font-mono text-xs">
-                        {session.studentId}
-                      </td>
+                  <button
+                    onClick={() => setPeriod("이번주")}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                      period === "이번주"
+                        ? "bg-slate-700 text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    이번주
+                  </button>
+                </div>
 
-                      <td className="px-6 py-4 text-gray-600">
-                        {session.checkInTime}
-                      </td>
+                <div className="relative w-64">
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="학생명 또는 연계 ID 검색"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm outline-none focus:border-slate-500"
+                  />
+                </div>
+              </div>
 
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${getStatusStyle(
-                            session.status,
-                          )}`}
-                        >
-                          {session.status}
-                        </span>
-                      </td>
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr className="text-left text-gray-500">
+                      <th className="px-6 py-4 font-medium">학생</th>
+
+                      <th className="px-6 py-4 font-medium">연계 ID</th>
+
+                      <th className="px-6 py-4 font-medium">접수 시각</th>
+
+                      <th className="px-6 py-4 font-medium">상태</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
 
-              {filteredSessions.length === 0 && (
-                <div className="py-16 text-center text-sm text-gray-400">
-                  검색 결과가 없습니다.
-                </div>
-              )}
-            </div>
-          </section>
+                  <tbody>
+                    {filteredSessions.map((session) => (
+                      <tr
+                        key={session.id}
+                        onClick={() => setSelectedSession(session)}
+                        className={`border-b border-gray-100 cursor-pointer hover:bg-slate-50 ${
+                          selectedSession?.id === session.id ? "bg-slate-50" : ""
+                        }`}
+                      >
+                        <td className="px-6 py-4 font-medium text-gray-900">
+                          {session.studentName}
+                        </td>
 
-          {/* Right: Detail */}
-          <aside className="bg-white border border-gray-200 rounded-xl p-6 h-fit">
-            {!selectedSession ? (
-              <div className="py-16 text-center">
-                <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                  <span className="text-gray-400">○</span>
-                </div>
+                        <td className="px-6 py-4 text-gray-500 font-mono text-xs">
+                          {session.studentId}
+                        </td>
 
-                <p className="text-sm font-medium text-gray-700">
-                  방문 세션을 선택하세요
-                </p>
+                        <td className="px-6 py-4 text-gray-600">
+                          {session.checkInTime}
+                        </td>
 
-                <p className="text-xs text-gray-400 mt-2">
-                  목록에서 학생을 선택하면 상세 정보를 확인할 수 있습니다.
-                </p>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${getStatusStyle(
+                              session.status,
+                            )}`}
+                          >
+                            {session.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {filteredSessions.length === 0 && (
+                  <div className="py-16 text-center text-sm text-gray-400">
+                    검색 결과가 없습니다.
+                  </div>
+                )}
               </div>
-            ) : (
-              <>
-                <div className="border-b border-gray-100 pb-5">
-                  <p className="text-xs text-gray-400 mb-2">방문 세션</p>
+            </section>
 
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    {selectedSession.studentName}
-                  </h3>
+            {/* Right: Detail */}
+            <aside className="bg-white border border-gray-200 rounded-xl p-6 h-fit">
+              {!selectedSession ? (
+                <div className="py-16 text-center">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                    <span className="text-gray-400">○</span>
+                  </div>
 
-                  <p className="text-sm text-gray-400 mt-1">
-                    {selectedSession.studentId}
+                  <p className="text-sm font-medium text-gray-700">
+                    방문 세션을 선택하세요
+                  </p>
+
+                  <p className="text-xs text-gray-400 mt-2">
+                    목록에서 학생을 선택하면 상세 정보를 확인할 수 있습니다.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="border-b border-gray-100 pb-5">
+                    <p className="text-xs text-gray-400 mb-2">방문 세션</p>
+
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {selectedSession.studentName}
+                    </h3>
+
+                    <p className="text-sm text-gray-400 mt-1">
+                      {selectedSession.studentId}
+                    </p>
+                  </div>
+
+                  <div className="py-5 space-y-5">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">접수 시각</p>
+
+                      <p className="text-sm font-medium">
+                        {selectedSession.date} {selectedSession.checkInTime}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">학교</p>
+
+                      <p className="text-sm font-medium">
+                        {selectedSession.school}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-gray-400 mb-2">현재 상태</p>
+
+                      <span
+                        className={`inline-flex px-3 py-1.5 rounded-md text-sm font-medium ${getStatusStyle(
+                          selectedSession.status,
+                        )}`}
+                      >
+                        {selectedSession.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-100 pt-5">
+                    {selectedSession.status === "전송완료" ? (
+                      <div className="bg-green-50 border border-green-100 rounded-lg px-4 py-3">
+                        <p className="text-sm font-medium text-green-700">
+                          ✓ 전송 완료
+                        </p>
+
+                        <p className="text-xs text-green-600 mt-1">
+                          인증 데이터가 학교 시스템으로 정상적으로 전송되었습니다.
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleCompleteTreatment}
+                        className="w-full bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        진료 완료
+                      </button>
+                    )}
+
+                    {selectedSession.status !== "전송완료" && (
+                      <p className="text-xs text-gray-400 text-center mt-3">
+                        진료 완료 시 인증 데이터가 자동 생성되어 학교 시스템으로
+                        전송됩니다.
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </aside>
+          </div>
+        </main>
+      ) : (
+        <main className="flex items-center justify-center px-8 py-16">
+          <div className="w-full max-w-3xl">
+            <div className="text-center mb-8">
+              <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-medium px-3 py-1.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                연계 서비스 정상 연결됨
+              </span>
+
+              <h2 className="text-3xl font-semibold text-gray-900 mt-5">
+                {hospitalName} 방문 접수 QR
+              </h2>
+
+              <p className="text-sm text-gray-500 mt-2">
+                아래 QR코드를 스캔하면 보건결석 자동 처리 접수가 시작됩니다.
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-2xl px-10 py-10 flex flex-col items-center">
+              <div className="p-6 bg-white border border-gray-100 rounded-xl shadow-sm">
+                <QRCode value={qrToken} size={240} />
+              </div>
+
+              <p className="text-xs text-gray-400 mt-6 font-mono tracking-wide">
+                연계 ID · {qrToken}
+              </p>
+
+              <div className="w-full border-t border-gray-100 mt-8 pt-8 grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="w-8 h-8 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-sm font-semibold text-slate-600">
+                    1
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                    학교 계정으로
+                    <br />
+                    로그인합니다
                   </p>
                 </div>
 
-                <div className="py-5 space-y-5">
-                  <div>
-                    <p className="text-xs text-gray-400 mb-1">접수 시각</p>
-
-                    <p className="text-sm font-medium">
-                      {selectedSession.date} {selectedSession.checkInTime}
-                    </p>
+                <div className="text-center">
+                  <div className="w-8 h-8 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-sm font-semibold text-slate-600">
+                    2
                   </div>
-
-                  <div>
-                    <p className="text-xs text-gray-400 mb-1">학교</p>
-
-                    <p className="text-sm font-medium">
-                      {selectedSession.school}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-400 mb-2">현재 상태</p>
-
-                    <span
-                      className={`inline-flex px-3 py-1.5 rounded-md text-sm font-medium ${getStatusStyle(
-                        selectedSession.status,
-                      )}`}
-                    >
-                      {selectedSession.status}
-                    </span>
-                  </div>
+                  <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                    QR코드를
+                    <br />
+                    스캔 합니다
+                  </p>
                 </div>
 
-                <div className="border-t border-gray-100 pt-5">
-                  {selectedSession.status === "전송완료" ? (
-                    <div className="bg-green-50 border border-green-100 rounded-lg px-4 py-3">
-                      <p className="text-sm font-medium text-green-700">
-                        ✓ 전송 완료
-                      </p>
-
-                      <p className="text-xs text-green-600 mt-1">
-                        인증 데이터가 학교 시스템으로 정상적으로 전송되었습니다.
-                      </p>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleCompleteTreatment}
-                      className="w-full bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      진료 완료
-                    </button>
-                  )}
-
-                  {selectedSession.status !== "전송완료" && (
-                    <p className="text-xs text-gray-400 text-center mt-3">
-                      진료 완료 시 인증 데이터가 자동 생성되어 학교 시스템으로
-                      전송됩니다.
-                    </p>
-                  )}
+                <div className="text-center">
+                  <div className="w-8 h-8 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-sm font-semibold text-slate-600">
+                    3
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2 leading-relaxed">
+                    정보 전달에
+                    <br />
+                    동의하고 진료받습니다
+                  </p>
                 </div>
-              </>
-            )}
-          </aside>
-        </div>
-      </main>
+              </div>
+            </div>
+
+            <p className="text-center text-xs text-gray-400 mt-6">
+              이 QR코드는 {hospitalName} 안내데스크에 고정 비치되는 코드입니다. 학생별로 다시 발급하지 않아도 됩니다.
+            </p>
+          </div>
+        </main>
+      )}
     </div>
   )
 }

@@ -135,10 +135,10 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 font-medium tracking-wide">
-              한국대학교 · 컴퓨터공학과 2학년
+              숭실대학교 · 소프트웨어학부 3학년
             </p>
             <h1 className="text-lg font-bold text-gray-900 mt-0.5">
-              안녕하세요, 김지수님 👋
+              안녕하세요, 정유채님 👋
             </h1>
           </div>
 
