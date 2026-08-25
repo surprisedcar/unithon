@@ -3,6 +3,7 @@ import QRFlow from "../QRFlow"
 
 type Tab = "home" | "hospitals" | "history" | "profile"
 type Screen = "home" | "detail" | "how" | "qrflow" | "hospitals"
+type AuthStep = "login" | "consent" | "app"
 
 interface LeaveRecord {
   id: string
@@ -126,6 +127,258 @@ function CheckIcon({ className = "" }: { className?: string }) {
   )
 }
 
+/* ─── 최초 1회 로그인 (앱 진입 시) ─── */
+function AppLoginScreen({ onNext }: { onNext: () => void }) {
+  const [studentId, setStudentId] = useState("")
+  const [name, setName] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const valid = studentId.length >= 8 && name.length >= 2
+
+  const handleSubmit = () => {
+    if (!valid) return
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+      onNext()
+    }, 1000)
+  }
+
+  return (
+    <div className="flex flex-col min-h-full bg-[#f7f9fc]">
+      <div className="flex-1 overflow-y-auto px-6 pt-16 pb-8">
+        <div className="flex items-center gap-3 mb-8 p-4 bg-white rounded-2xl border border-gray-100">
+          <div className="w-11 h-11 rounded-xl bg-brand-600 flex items-center justify-center shrink-0">
+            <span className="text-white font-bold text-sm">숭</span>
+          </div>
+          <div>
+            <p className="text-xs text-gray-400 font-medium">연동 학교</p>
+            <p className="text-sm font-bold text-gray-900">숭실대학교</p>
+          </div>
+          <div className="ml-auto flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-mint-500" />
+            <span className="text-xs font-semibold text-mint-600">연동</span>
+          </div>
+        </div>
+
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          학교 계정으로
+          <br />
+          로그인
+        </h1>
+        <p className="text-sm text-gray-500 mb-8">
+          학번과 이름을 입력해 본인인증을 진행합니다. 한 번 인증하면 이후 병원
+          방문 시 다시 로그인하지 않아도 됩니다.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1.5 pl-1">
+              학번
+            </label>
+            <input
+              type="text"
+              placeholder="20230000"
+              maxLength={10}
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value.replace(/\D/g, ""))}
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1.5 pl-1">
+              이름
+            </label>
+            <input
+              type="text"
+              placeholder="홍길동"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3.5 text-sm text-gray-900 placeholder:text-gray-300 focus:outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-brand-50 border border-brand-100 rounded-xl">
+          <p className="text-xs text-brand-700 leading-relaxed">
+            <span className="font-bold">개인정보 안내 —</span> 입력하신 정보는
+            본인인증 목적으로만 사용되며 서버에 저장되지 않습니다.
+          </p>
+        </div>
+      </div>
+
+      <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+        <button
+          onClick={handleSubmit}
+          disabled={!valid || loading}
+          className={`w-full font-bold text-base py-4 rounded-2xl transition-all duration-150 ${
+            valid && !loading
+              ? "bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white shadow-lg shadow-brand-200"
+              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <svg
+                className="w-4 h-4 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              인증 중…
+            </span>
+          ) : (
+            "인증하고 계속하기"
+          )}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ─── 최초 1회 개인정보 제공 동의 (앱 진입 시) ─── */
+function AppConsentScreen({ onNext }: { onNext: () => void }) {
+  const [checked, setChecked] = useState(false)
+
+  const shared = [
+    { label: "진료일자", desc: "제휴 병원 방문 날짜" },
+    { label: "병원명", desc: "진료받은 제휴 병원" },
+    { label: "인증 여부", desc: "진료 완료 여부 (코드)" },
+  ]
+
+  return (
+    <div className="flex flex-col min-h-full bg-[#f7f9fc]">
+      <div className="flex-1 overflow-y-auto px-6 pt-16 pb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          개인정보
+          <br />
+          제공 동의
+        </h1>
+        <p className="text-sm text-gray-500 mb-8">
+          앞으로 제휴 병원에서 진료받을 때마다, 별도 서류 제출 없이 아래 정보가
+          학교로 자동 전달됩니다.
+        </p>
+
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+            <span className="text-xs font-bold text-gray-500">전달 항목</span>
+          </div>
+          {shared.map((item) => (
+            <div
+              key={item.label}
+              className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50 last:border-0"
+            >
+              <div>
+                <p className="text-sm font-semibold text-gray-800">
+                  {item.label}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-brand-50 text-brand-700 border border-brand-100">
+                <svg
+                  className="w-3 h-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                전달
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-mint-50 border border-mint-200 rounded-2xl p-4 mb-5">
+          <div className="flex items-start gap-2.5">
+            <div className="w-5 h-5 rounded-full bg-mint-500 flex items-center justify-center shrink-0 mt-0.5">
+              <svg
+                className="w-3 h-3 text-white"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <p className="text-xs text-mint-800 leading-relaxed font-medium">
+              <span className="font-bold">
+                진단명·처방전 등 상세 진료 내용은 전달되지 않습니다.
+              </span>{" "}
+              병원 방문 사실과 날짜만 암호화된 코드로 전달됩니다.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setChecked(!checked)}
+          className="w-full flex items-start gap-3 bg-white border-2 rounded-2xl p-4 transition-all"
+          style={{ borderColor: checked ? "#0170bf" : "#e5e7eb" }}
+        >
+          <div
+            className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+              checked ? "bg-brand-600" : "bg-gray-100"
+            }`}
+          >
+            {checked && (
+              <svg
+                className="w-3.5 h-3.5 text-white"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-gray-800 text-left leading-relaxed">
+            진료 사실을 학교에 자동 전달하는 것에 동의합니다.
+            <span className="block text-xs text-gray-400 font-normal mt-0.5">
+              마이페이지에서 언제든 동의를 철회할 수 있습니다.
+            </span>
+          </p>
+        </button>
+      </div>
+
+      <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+        <button
+          onClick={onNext}
+          disabled={!checked}
+          className={`w-full font-bold text-base py-4 rounded-2xl transition-all duration-150 ${
+            checked
+              ? "bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white shadow-lg shadow-brand-200"
+              : "bg-gray-100 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          동의하고 계속하기
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const [showNotif, setShowNotif] = useState(false)
 
@@ -241,12 +494,10 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
           </div>
 
           <div className="flex-1 text-left">
-            <p className="text-sm font-bold text-gray-900">
-              병원 QR 스캔 플로우 체험
-            </p>
+            <p className="text-sm font-bold text-gray-900">병원 QR 스캔</p>
 
             <p className="text-xs text-gray-400 mt-0.5">
-              접수부터 처리 완료까지 전체 흐름 보기
+              접수부터 처리 완료까지 한 번에
             </p>
           </div>
         </button>
@@ -319,7 +570,15 @@ function BackButton({ onBack }: { onBack: () => void }) {
       onClick={onBack}
       className="flex items-center gap-1.5 text-brand-600 text-sm font-semibold mb-4 hover:text-brand-800 transition-colors"
     >
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <svg
+        className="w-4 h-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
         <polyline points="15 18 9 12 15 6" />
       </svg>
       돌아가기
@@ -532,6 +791,7 @@ function ProfileScreen({ onBack }: { onBack?: () => void }) {
 }
 
 export default function StudentPage() {
+  const [authStep, setAuthStep] = useState<AuthStep>("login")
   const [tab, setTab] = useState<Tab>("home")
   const [screen, setScreen] = useState<Screen>("home")
 
@@ -554,6 +814,14 @@ export default function StudentPage() {
   }
 
   const renderContent = () => {
+    if (authStep === "login") {
+      return <AppLoginScreen onNext={() => setAuthStep("consent")} />
+    }
+
+    if (authStep === "consent") {
+      return <AppConsentScreen onNext={() => setAuthStep("app")} />
+    }
+
     if (screen === "qrflow") {
       return (
         <QRFlow
@@ -577,7 +845,10 @@ export default function StudentPage() {
       return <HospitalsScreen onBack={() => setScreen("home")} />
     }
 
-    const goHome = () => { setTab("home"); setScreen("home"); }
+    const goHome = () => {
+      setTab("home")
+      setScreen("home")
+    }
 
     switch (tab) {
       case "home":
@@ -599,7 +870,7 @@ export default function StudentPage() {
       <div className="relative w-full max-w-[390px] h-full max-h-[844px] bg-[#f7f9fc] overflow-hidden flex flex-col shadow-2xl rounded-[40px] border border-gray-300">
         <div className="flex-1 overflow-hidden">{renderContent()}</div>
 
-        {(screen === "home" || screen === "detail") && (
+        {authStep === "app" && (screen === "home" || screen === "detail") && (
           <div className="bg-white border-t border-gray-100 px-2 pt-2 pb-4 flex items-center">
             {navItems.map((item) => (
               <button
