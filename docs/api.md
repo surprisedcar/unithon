@@ -588,7 +588,7 @@ GET /api/v1/universities/1/visits?status=SENT_TO_UNIVERSITY
 
 # 9.2 Complete Visit
 
-학교에서 보건결석 처리를 완료한다.
+학교에서 유고결석 처리를 완료한다.
 
 ```http
 POST /api/v1/universities/{universityId}/visits/{visitId}/complete

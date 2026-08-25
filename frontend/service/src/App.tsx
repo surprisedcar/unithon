@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import StudentPage from "./pages/StudentPage";
 import HospitalDashboard from "./pages/HospitalDashboard";
+import { createLoginSession, getCurrentLoginSession, SESSION_TOKEN_KEY, STUDENT_SESSION_KEY } from "./api/sessionApi";
 
 type UserRole = "student" | "hospital" | null;
 
@@ -9,24 +10,43 @@ function App() {
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [restoring, setRestoring] = useState(true);
+  const [loggingIn, setLoggingIn] = useState(false);
 
-  const handleLogin = () => {
+  useEffect(() => {
+    const token = sessionStorage.getItem(SESSION_TOKEN_KEY);
+    if (!token) {
+      setRestoring(false);
+      return;
+    }
+
+    getCurrentLoginSession(token)
+      .then((session) => setRole(session.role === "STUDENT" ? "student" : "hospital"))
+      .catch(() => {
+        sessionStorage.removeItem(SESSION_TOKEN_KEY);
+        sessionStorage.removeItem(STUDENT_SESSION_KEY);
+      })
+      .finally(() => setRestoring(false));
+  }, []);
+
+  const handleLogin = async () => {
     setError("");
-
-    // 학생 로그인
-    if (id === "student" && password === "1234") {
-      setRole("student");
-      return;
+    setLoggingIn(true);
+    try {
+      const session = await createLoginSession(id, password);
+      sessionStorage.setItem(SESSION_TOKEN_KEY, session.token);
+      if (session.role === "HOSPITAL") sessionStorage.removeItem(STUDENT_SESSION_KEY);
+      setRole(session.role === "STUDENT" ? "student" : "hospital");
+    } catch {
+      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
+    } finally {
+      setLoggingIn(false);
     }
-
-    // 병원 로그인
-    if (id === "hospital" && password === "1234") {
-      setRole("hospital");
-      return;
-    }
-
-    setError("아이디 또는 비밀번호가 올바르지 않습니다.");
   };
+
+  if (restoring) {
+    return <div className="min-h-screen flex items-center justify-center bg-[#f4f6f8] text-sm text-gray-500">로그인 세션 확인 중…</div>;
+  }
 
   // 학생용 AutoMedi 앱
   if (role === "student") {
@@ -49,7 +69,7 @@ function App() {
           </h1>
 
           <p className="text-sm text-gray-500 mt-2">
-            보건결석 증빙 자동 연계 서비스
+            유고결석 증빙 자동 연계 서비스
           </p>
         </div>
 
@@ -80,7 +100,7 @@ function App() {
               placeholder="비밀번호를 입력하세요"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  handleLogin();
+                  void handleLogin();
                 }
               }}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:border-slate-500"
@@ -94,10 +114,11 @@ function App() {
           )}
 
           <button
-            onClick={handleLogin}
+            onClick={() => void handleLogin()}
+            disabled={loggingIn}
             className="w-full bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-lg font-medium transition-colors"
           >
-            로그인
+            {loggingIn ? "로그인 중…" : "로그인"}
           </button>
 
         </div>

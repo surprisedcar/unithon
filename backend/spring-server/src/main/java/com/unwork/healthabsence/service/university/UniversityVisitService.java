@@ -36,7 +36,7 @@ public class UniversityVisitService {
         }
         if (visit.getStatus() != VisitStatus.SENT_TO_UNIVERSITY) {
             throw new ApiException("INVALID_VISIT_STATUS",
-                "현재 상태에서는 보건결석 완료 처리를 할 수 없습니다.", HttpStatus.CONFLICT);
+                "현재 상태에서는 유고결석 완료 처리를 할 수 없습니다.", HttpStatus.CONFLICT);
         }
         Instant now = Instant.now();
         visit.setStatus(VisitStatus.COMPLETED);

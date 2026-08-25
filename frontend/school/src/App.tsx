@@ -148,16 +148,20 @@ function SchoolPageContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const universityId = Number(import.meta.env.VITE_UNIVERSITY_ID || 1);
-  const visit = visits.find((item) => item.status === "SENT_TO_UNIVERSITY") || visits[0];
+  const visit = visits.find((item) => item.status === "SENT_TO_UNIVERSITY");
 
-  const loadVisits = async () => {
-    setLoading(true);
+  const loadVisits = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     try { setVisits(await getUniversityVisits(universityId)); setError(""); }
     catch (cause) { console.error("학교 Visit 목록 조회 실패", cause); setError(cause instanceof Error ? cause.message : "진료 인증 정보를 불러오지 못했습니다."); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { void loadVisits(); }, []);
+  useEffect(() => {
+    void loadVisits();
+    const timer = window.setInterval(() => void loadVisits(false), 3000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const toggle = (id: number) =>
     setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -182,14 +186,15 @@ function SchoolPageContent() {
       {error && <p className="px-7 pt-5 text-sm text-red-600">{error}</p>}
 
       {!submitted ? (
-        <>
+        visit ? (
+          <>
           <div className="p-7">
             <div className="border border-blue-100 bg-blue-50 rounded-lg p-5">
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-green-600 text-lg">✓</span>
-                    <p className="font-semibold text-gray-900">{visit ? "의료기관 진료 인증 도착" : "진료 인증 대기 중"}</p>
+                    <p className="font-semibold text-gray-900">의료기관 진료 인증 도착</p>
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
                     제휴 의료기관으로부터 진료 인증 데이터가 전달되었습니다.
@@ -199,9 +204,9 @@ function SchoolPageContent() {
               </div>
               <div className="grid grid-cols-3 gap-4 mt-6">
                 {[
-                  { label: "진료 일시", lines: [visit ? new Date(visit.createdAt).toLocaleString("ko-KR") : "-" ] },
-                  { label: "의료기관", lines: [visit?.hospitalName || "-"] },
-                  { label: "인증 번호", lines: [visit?.visitId || "-"] },
+                  { label: "진료 일시", lines: [new Date(visit.createdAt).toLocaleString("ko-KR")] },
+                  { label: "의료기관", lines: [visit.hospitalName] },
+                  { label: "인증 번호", lines: [visit.visitId] },
                 ].map((item) => (
                   <div key={item.label}>
                     <p className="text-xs text-gray-400">{item.label}</p>
@@ -259,7 +264,22 @@ function SchoolPageContent() {
               </button>
             </div>
           </div>
-        </>
+          </>
+        ) : !loading ? (
+          <div className="px-7 py-16 text-center">
+            <div className="w-16 h-16 mx-auto rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-2xl">○</div>
+            <h3 className="text-lg font-semibold text-gray-900 mt-5">진료 인증 요청 대기 중</h3>
+            <p className="text-sm text-gray-500 mt-2">
+              병원에서 진료를 완료하면 결석 신청 가능한 인증 정보가 이 화면에 표시됩니다.
+            </p>
+            <button
+              onClick={() => void loadVisits()}
+              className="mt-6 border border-gray-300 px-5 py-2.5 rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              새로고침
+            </button>
+          </div>
+        ) : null
       ) : (
         <div className="p-16 text-center">
           <div className="w-16 h-16 mx-auto bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl">✓</div>

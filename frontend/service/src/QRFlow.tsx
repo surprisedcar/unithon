@@ -94,10 +94,12 @@ const PROCESS_STEPS = [
 
 function WaitingScreen({
   onRefresh,
+  onClose,
   hospital,
   status,
 }: {
   onRefresh: () => void;
+  onClose: () => void;
   hospital: HospitalQRData;
   status: VisitStatus;
 }) {
@@ -178,6 +180,12 @@ function WaitingScreen({
         >
           처리 상태 새로고침
         </button>
+        <button
+          onClick={onClose}
+          className="w-full mt-3 py-3.5 rounded-2xl border border-gray-200 bg-white text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          홈으로 나가기
+        </button>
       </div>
     </div>
   );
@@ -215,7 +223,7 @@ function CompleteScreen({
         <h1
           className={`text-2xl font-bold text-gray-900 text-center mb-2 transition-all duration-500 delay-150 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}
         >
-          보건결석 처리가<br />완료되었습니다
+          유고결석 처리가<br />완료되었습니다
         </h1>
         <p className={`text-sm text-gray-500 text-center mb-8 transition-all duration-500 delay-200 ${mounted ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}>
           서류 제출 없이 자동으로 처리되었습니다.
@@ -234,7 +242,7 @@ function CompleteScreen({
             { label: "진료일자", value: dateLabel },
             { label: "처리 시각", value: timeLabel },
             { label: "수신 기관", value: "숭실대학교 학생처" },
-            { label: "처리 상태", value: "보건결석 승인 완료" },
+            { label: "처리 상태", value: "유고결석 승인 완료" },
           ].map((row) => (
             <div key={row.label} className="flex items-center justify-between px-5 py-3.5 border-b border-gray-50 last:border-0">
               <span className="text-xs text-gray-400">{row.label}</span>
@@ -334,7 +342,7 @@ export default function QRFlow({
         <ScanScreen onDetected={handleDetected} onClose={onClose} />
       )}
       {step === "waiting" && hospital && (
-        <WaitingScreen onRefresh={() => void refresh()} hospital={hospital} status={status} />
+        <WaitingScreen onRefresh={() => void refresh()} onClose={onClose} hospital={hospital} status={status} />
       )}
       {step === "complete" && hospital && (
         <CompleteScreen onClose={handleClose} hospital={hospital} />

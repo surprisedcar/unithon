@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import QRFlow from "../QRFlow"
 import { verifyStudent, type StudentInfo } from "../api/studentApi"
+import { STUDENT_SESSION_KEY } from "../api/sessionApi"
 import { getStudentVisits, type StudentVisit, type VisitStatus } from "../api/visitApi"
 
 type Tab = "home" | "hospitals" | "history" | "profile"
@@ -434,7 +435,7 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
 
               <div>
                 <p className="text-sm font-semibold text-gray-900">
-                  보건결석 처리 완료
+                  유고결석 처리 완료
                 </p>
 
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -468,7 +469,7 @@ function HomeScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
             </div>
 
             <p className="text-white/70 text-sm mb-1">
-              이번 학기 보건결석 현황
+              이번 학기 유고결석 현황
             </p>
 
             <div className="flex items-baseline gap-2">
@@ -619,7 +620,7 @@ function HistoryScreen({ onBack, studentId }: { onBack?: () => void; studentId: 
         {onBack && <BackButton onBack={onBack} />}
         <h1 className="text-xl font-bold text-gray-900">처리 내역</h1>
 
-        <p className="text-sm text-gray-400 mt-1">보건결석 자동 처리 기록</p>
+        <p className="text-sm text-gray-400 mt-1">유고결석 자동 처리 기록</p>
 
         <div className="flex gap-2 mt-4">
           {filters.map((f) => (
@@ -811,10 +812,19 @@ function ProfileScreen({ onBack }: { onBack?: () => void }) {
 }
 
 export default function StudentPage() {
-  const [authStep, setAuthStep] = useState<AuthStep>("login")
+  const savedStudent = (() => {
+    try {
+      const value = sessionStorage.getItem(STUDENT_SESSION_KEY)
+      return value ? JSON.parse(value) as StudentInfo : null
+    } catch {
+      sessionStorage.removeItem(STUDENT_SESSION_KEY)
+      return null
+    }
+  })()
+  const [authStep, setAuthStep] = useState<AuthStep>(savedStudent ? "app" : "login")
   const [tab, setTab] = useState<Tab>("home")
   const [screen, setScreen] = useState<Screen>("home")
-  const [student, setStudent] = useState<StudentInfo | null>(null)
+  const [student, setStudent] = useState<StudentInfo | null>(savedStudent)
 
   const navItems: {
     id: Tab
@@ -840,7 +850,10 @@ export default function StudentPage() {
     }
 
     if (authStep === "consent") {
-      return <AppConsentScreen onNext={() => setAuthStep("app")} />
+      return <AppConsentScreen onNext={() => {
+        if (student) sessionStorage.setItem(STUDENT_SESSION_KEY, JSON.stringify(student))
+        setAuthStep("app")
+      }} />
     }
 
     if (screen === "qrflow") {

@@ -25,11 +25,14 @@ export default function QRScanner({ onBack, onDetected }: {
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const rafRef = useRef<number>(0)
   const streamRef = useRef<MediaStream | null>(null)
 
   const [scanState, setScanState] = useState<ScanState>("requesting")
   const [detected, setDetected] = useState<HospitalQRData | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError] = useState("")
 
   useEffect(() => {
     let cancelled = false
@@ -105,6 +108,57 @@ export default function QRScanner({ onBack, onDetected }: {
     setScanState("detected")
     setDetected(data)
     stopCamera()
+  }
+
+  async function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file) return
+
+    if (!file.type.startsWith("image/")) {
+      setUploadError("이미지 파일만 선택할 수 있습니다.")
+      return
+    }
+
+    setIsUploading(true)
+    setUploadError("")
+    let bitmap: ImageBitmap | null = null
+
+    try {
+      bitmap = await createImageBitmap(file)
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext("2d", { willReadFrequently: true })
+      if (!canvas || !ctx) throw new Error("이미지를 처리할 수 없습니다.")
+
+      const maxDimension = 2048
+      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height))
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const code = jsQR(imageData.data, imageData.width, imageData.height)
+      if (!code) {
+        setUploadError("사진에서 QR 코드를 찾지 못했습니다. 선명한 사진으로 다시 시도해주세요.")
+        return
+      }
+
+      const data = await parseQR(code.data)
+      if (!data) {
+        setUploadError("유효하지 않거나 만료된 병원 QR 코드입니다.")
+        return
+      }
+
+      setDetected(data)
+      setScanState("detected")
+      stopCamera()
+    } catch (cause) {
+      console.error("QR 이미지 처리 실패", cause)
+      setUploadError(cause instanceof Error ? cause.message : "사진을 불러오지 못했습니다.")
+    } finally {
+      bitmap?.close()
+      setIsUploading(false)
+    }
   }
 
   if (detected && scanState === "detected") {
@@ -222,6 +276,26 @@ export default function QRScanner({ onBack, onDetected }: {
 
       {/* Bottom bar */}
       <div className="absolute bottom-0 inset-x-0 z-10 px-6 pb-10 pt-6 bg-gradient-to-t from-black/80 to-transparent flex flex-col items-center gap-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => void handleImageUpload(event)}
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="w-full py-3.5 rounded-2xl bg-white text-gray-900 text-sm font-bold hover:bg-gray-100 disabled:opacity-60 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          {isUploading ? "사진 분석 중…" : "사진에서 QR 불러오기"}
+        </button>
+        {uploadError && <p className="text-red-300 text-xs text-center">{uploadError}</p>}
         {(scanState === "scanning" || scanState === "error") && (
           <button
             onClick={simulateScan}

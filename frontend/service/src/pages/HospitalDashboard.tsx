@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react"
+import { QRCodeSVG } from "qrcode.react"
 import { confirmHospitalVisit, createQrToken, getHospitalVisits } from "../api/hospitalApi"
 import { sendToUniversity, type VisitStatus as ApiVisitStatus } from "../api/visitApi"
 
-type VisitStatus = "대기중" | "진료완료" | "전송완료"
+type VisitStatus = "대기중" | "진료완료"
 type Period = "오늘" | "이번주"
 type Tab = "sessions" | "qr"
 
@@ -10,8 +11,7 @@ const HOSPITAL_ID = Number(import.meta.env.VITE_HOSPITAL_ID || 1)
 
 function toUiStatus(status: ApiVisitStatus): VisitStatus {
   if (status === "WAITING_HOSPITAL_CONFIRMATION") return "대기중"
-  if (status === "VISIT_CONFIRMED") return "진료완료"
-  return "전송완료"
+  return "진료완료"
 }
 
 interface VisitSession {
@@ -22,86 +22,6 @@ interface VisitSession {
   checkInTime: string
   date: string
   status: VisitStatus
-}
-
-// 실제 서비스에서는 'qrcode.react' 같은 라이브러리로 실제 QR을 생성하되,
-// 여기서는 데모용으로 고정 시드 기반의 QR 모양 패턴을 SVG로 그립니다.
-function generateModules(seed: string, size = 21) {
-  let hash = 0
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  }
-
-  const modules: boolean[][] = []
-  for (let row = 0; row < size; row++) {
-    const rowModules: boolean[] = []
-    for (let col = 0; col < size; col++) {
-      hash = (hash * 1103515245 + 12345) >>> 0
-      rowModules.push((hash >> 16) % 3 === 0)
-    }
-    modules.push(rowModules)
-  }
-  return modules
-}
-
-function QRCode({ value, size = 220 }: { value: string; size?: number }) {
-  const gridSize = 21
-  const modules = useMemo(() => generateModules(value, gridSize), [value])
-  const cell = size / gridSize
-
-  const isFinderZone = (row: number, col: number) => {
-    const inTopLeft = row < 7 && col < 7
-    const inTopRight = row < 7 && col >= gridSize - 7
-    const inBottomLeft = row >= gridSize - 7 && col < 7
-    return inTopLeft || inTopRight || inBottomLeft
-  }
-
-  const Finder = ({ x, y }: { x: number; y: number }) => (
-    <g transform={`translate(${x}, ${y})`}>
-      <rect width={cell * 7} height={cell * 7} fill="#1e293b" rx={cell * 0.8} />
-      <rect
-        x={cell}
-        y={cell}
-        width={cell * 5}
-        height={cell * 5}
-        fill="white"
-        rx={cell * 0.5}
-      />
-      <rect
-        x={cell * 2}
-        y={cell * 2}
-        width={cell * 3}
-        height={cell * 3}
-        fill="#1e293b"
-        rx={cell * 0.3}
-      />
-    </g>
-  )
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
-      <rect width={size} height={size} fill="white" />
-      {modules.map((rowModules, row) =>
-        rowModules.map((filled, col) => {
-          if (!filled || isFinderZone(row, col)) return null
-          return (
-            <rect
-              key={`${row}-${col}`}
-              x={col * cell}
-              y={row * cell}
-              width={cell * 0.9}
-              height={cell * 0.9}
-              fill="#1e293b"
-              rx={cell * 0.15}
-            />
-          )
-        }),
-      )}
-      <Finder x={0} y={0} />
-      <Finder x={size - cell * 7} y={0} />
-      <Finder x={0} y={size - cell * 7} />
-    </svg>
-  )
 }
 
 export default function HospitalDashboard({ onClose }: { onClose?: () => void }) {
@@ -180,8 +100,6 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
       case "진료완료":
         return "bg-blue-50 text-blue-700"
 
-      case "전송완료":
-        return "bg-green-50 text-green-700"
     }
   }
 
@@ -202,13 +120,7 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
     (session) => session.status === "대기중",
   ).length
 
-  const completedCount = sessions.filter(
-    (session) => session.status === "진료완료",
-  ).length
-
-  const sentCount = sessions.filter(
-    (session) => session.status === "전송완료",
-  ).length
+  const completedCount = sessions.filter((session) => session.status === "진료완료").length
 
   return (
     <div className="min-h-screen bg-[#f4f6f8] text-gray-800">
@@ -222,7 +134,7 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
           <div>
             <h1 className="text-base font-semibold">병원 연계 관리 시스템</h1>
 
-            <p className="text-xs text-gray-400">보건결석 진료 인증 관리</p>
+            <p className="text-xs text-gray-400">유고결석 진료 인증 관리</p>
           </div>
         </div>
 
@@ -292,7 +204,7 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
           {loading && <div className="mb-4 text-sm text-gray-500">방문 목록을 불러오는 중입니다…</div>}
 
           {/* Summary */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
               <p className="text-sm text-gray-500">대기중</p>
 
@@ -305,11 +217,6 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
               <p className="text-2xl font-semibold mt-2">{completedCount}</p>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-xl px-5 py-4">
-              <p className="text-sm text-gray-500">전송완료</p>
-
-              <p className="text-2xl font-semibold mt-2">{sentCount}</p>
-            </div>
           </div>
 
           {/* Main Layout */}
@@ -471,14 +378,14 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
                   </div>
 
                   <div className="border-t border-gray-100 pt-5">
-                    {selectedSession.status === "전송완료" ? (
+                    {selectedSession.status === "진료완료" ? (
                       <div className="bg-green-50 border border-green-100 rounded-lg px-4 py-3">
                         <p className="text-sm font-medium text-green-700">
-                          ✓ 전송 완료
+                          ✓ 진료 완료
                         </p>
 
                         <p className="text-xs text-green-600 mt-1">
-                          인증 데이터가 학교 시스템으로 정상적으로 전송되었습니다.
+                          진료가 완료되어 인증 데이터가 학교 시스템으로 전송되었습니다.
                         </p>
                       </div>
                     ) : (
@@ -490,7 +397,7 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
                       </button>
                     )}
 
-                    {selectedSession.status !== "전송완료" && (
+                    {selectedSession.status !== "진료완료" && (
                       <p className="text-xs text-gray-400 text-center mt-3">
                         진료 완료 시 인증 데이터가 자동 생성되어 학교 시스템으로
                         전송됩니다.
@@ -516,13 +423,13 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
               </h2>
 
               <p className="text-sm text-gray-500 mt-2">
-                아래 QR코드를 스캔하면 보건결석 자동 처리 접수가 시작됩니다.
+                아래 QR코드를 스캔하면 유고결석 자동 처리 접수가 시작됩니다.
               </p>
             </div>
 
             <div className="bg-white border border-gray-200 rounded-2xl px-10 py-10 flex flex-col items-center">
               <div className="p-6 bg-white border border-gray-100 rounded-xl shadow-sm">
-                {qrToken ? <QRCode value={qrToken} size={240} /> : (
+                {qrToken ? <QRCodeSVG value={qrToken} size={240} level="M" marginSize={4} /> : (
                   <div className="w-[240px] h-[240px] flex items-center justify-center bg-gray-50 text-sm text-gray-400">QR을 발급해 주세요</div>
                 )}
               </div>
