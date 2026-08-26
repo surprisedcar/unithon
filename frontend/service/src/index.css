@@ -39,9 +39,10 @@
 html, body, #root {
   height: 100%;
   font-family: 'Noto Sans KR', 'Inter', system-ui, sans-serif;
+  overflow-y: auto;
 }
 
 /* Hide scrollbar while keeping scrollability */
-::-webkit-scrollbar { width: 0; background: transparent; }
+::-webkit-scrollbar { display: none; }
 * { scrollbar-width: none; }
 

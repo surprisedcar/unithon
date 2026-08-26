@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { QRCodeSVG } from "qrcode.react"
 import { confirmHospitalVisit, createQrToken, getHospitalVisits } from "../api/hospitalApi"
 import { sendToUniversity, type VisitStatus as ApiVisitStatus } from "../api/visitApi"
+import logo from "../assets/AutoMedicLogo.png"
 
 type VisitStatus = "대기중" | "진료완료" | "전송완료"
 type Period = "오늘" | "이번주"
@@ -23,86 +25,6 @@ interface VisitSession {
   checkInTime: string
   date: string
   status: VisitStatus
-}
-
-// 실제 서비스에서는 'qrcode.react' 같은 라이브러리로 실제 QR을 생성하되,
-// 여기서는 데모용으로 고정 시드 기반의 QR 모양 패턴을 SVG로 그립니다.
-function generateModules(seed: string, size = 21) {
-  let hash = 0
-  for (let i = 0; i < seed.length; i++) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
-  }
-
-  const modules: boolean[][] = []
-  for (let row = 0; row < size; row++) {
-    const rowModules: boolean[] = []
-    for (let col = 0; col < size; col++) {
-      hash = (hash * 1103515245 + 12345) >>> 0
-      rowModules.push((hash >> 16) % 3 === 0)
-    }
-    modules.push(rowModules)
-  }
-  return modules
-}
-
-function QRCode({ value, size = 220 }: { value: string; size?: number }) {
-  const gridSize = 21
-  const modules = useMemo(() => generateModules(value, gridSize), [value])
-  const cell = size / gridSize
-
-  const isFinderZone = (row: number, col: number) => {
-    const inTopLeft = row < 7 && col < 7
-    const inTopRight = row < 7 && col >= gridSize - 7
-    const inBottomLeft = row >= gridSize - 7 && col < 7
-    return inTopLeft || inTopRight || inBottomLeft
-  }
-
-  const Finder = ({ x, y }: { x: number; y: number }) => (
-    <g transform={`translate(${x}, ${y})`}>
-      <rect width={cell * 7} height={cell * 7} fill="#1e293b" rx={cell * 0.8} />
-      <rect
-        x={cell}
-        y={cell}
-        width={cell * 5}
-        height={cell * 5}
-        fill="white"
-        rx={cell * 0.5}
-      />
-      <rect
-        x={cell * 2}
-        y={cell * 2}
-        width={cell * 3}
-        height={cell * 3}
-        fill="#1e293b"
-        rx={cell * 0.3}
-      />
-    </g>
-  )
-
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="block">
-      <rect width={size} height={size} fill="white" />
-      {modules.map((rowModules, row) =>
-        rowModules.map((filled, col) => {
-          if (!filled || isFinderZone(row, col)) return null
-          return (
-            <rect
-              key={`${row}-${col}`}
-              x={col * cell}
-              y={row * cell}
-              width={cell * 0.9}
-              height={cell * 0.9}
-              fill="#1e293b"
-              rx={cell * 0.15}
-            />
-          )
-        }),
-      )}
-      <Finder x={0} y={0} />
-      <Finder x={size - cell * 7} y={0} />
-      <Finder x={0} y={size - cell * 7} />
-    </svg>
-  )
 }
 
 export default function HospitalDashboard({ onClose }: { onClose?: () => void }) {
@@ -240,9 +162,11 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
       {/* Header */}
       <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-slate-700 text-white rounded-lg flex items-center justify-center font-bold">
-            H
-          </div>
+          <img
+            src={logo}
+            alt="AutoMedic 로고"
+            className="h-12 w-16 object-contain"
+          />
 
           <div>
             <h1 className="text-base font-semibold">병원 연계 관리 시스템</h1>
@@ -556,7 +480,17 @@ export default function HospitalDashboard({ onClose }: { onClose?: () => void })
 
             <div className="bg-white border border-gray-200 rounded-2xl px-10 py-10 flex flex-col items-center">
               <div className="p-6 bg-white border border-gray-100 rounded-xl shadow-sm">
-                {qrToken ? <QRCode value={qrToken} size={240} /> : (
+                {qrToken ? (
+                  <QRCodeSVG
+                    value={qrToken}
+                    size={240}
+                    level="M"
+                    marginSize={4}
+                    bgColor="#ffffff"
+                    fgColor="#1e293b"
+                    className="block"
+                  />
+                ) : (
                   <div className="w-[240px] h-[240px] flex items-center justify-center bg-gray-50 text-sm text-gray-400">QR을 발급해 주세요</div>
                 )}
               </div>
