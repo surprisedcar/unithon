@@ -1,6 +1,7 @@
 import { useState } from "react";
 import StudentPage from "./pages/StudentPage";
 import HospitalDashboard from "./pages/HospitalDashboard";
+import logo from "./assets/AutoMedicLogo.png";
 
 type UserRole = "student" | "hospital" | null;
 const ROLE_STORAGE_KEY = "unwork.userRole";
@@ -52,9 +53,11 @@ function App() {
       <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-md p-8 shadow-sm">
         
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">
-            AutoMedi
-          </h1>
+          <img
+            src={logo}
+            alt="AutoMedic 로고"
+            className="mx-auto mb-3 h-40 w-64 object-contain"
+          />
 
           <p className="text-sm text-gray-500 mt-2">
             보건결석 증빙 자동 연계 서비스

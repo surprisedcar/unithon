@@ -11,12 +11,10 @@ interface HospitalQRData {
 }
 
 async function parseQR(raw: string): Promise<HospitalQRData | null> {
-  try {
-    const token = raw.trim()
-    if (!token) return null
-    const verified = await verifyQrToken(token)
-    return { hospital: verified.hospital.name, code: String(verified.hospital.id), token }
-  } catch (cause) { console.error("QR Token 검증 실패", cause); return null }
+  const token = raw.trim()
+  if (!token) return null
+  const verified = await verifyQrToken(token)
+  return { hospital: verified.hospital.name, code: String(verified.hospital.id), token }
 }
 
 export default function QRScanner({ onBack, onDetected }: {
@@ -30,6 +28,7 @@ export default function QRScanner({ onBack, onDetected }: {
 
   const [scanState, setScanState] = useState<ScanState>("requesting")
   const [detected, setDetected] = useState<HospitalQRData | null>(null)
+  const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
     let cancelled = false
@@ -47,7 +46,10 @@ export default function QRScanner({ onBack, onDetected }: {
           setScanState("scanning")
         }
       } catch {
-        if (!cancelled) setScanState("error")
+        if (!cancelled) {
+          setErrorMessage("카메라에 접근할 수 없습니다")
+          setScanState("error")
+        }
       }
     }
 
@@ -82,10 +84,17 @@ export default function QRScanner({ onBack, onDetected }: {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
       const code = jsQR(imageData.data, imageData.width, imageData.height)
       if (code) {
-        const data = await parseQR(code.data)
-        if (data) {
-          setScanState("detected")
-          setDetected(data)
+        try {
+          const data = await parseQR(code.data)
+          if (data) {
+            setScanState("detected")
+            setDetected(data)
+            stopCamera()
+            return
+          }
+        } catch (cause) {
+          setErrorMessage(cause instanceof Error ? cause.message : "QR 코드를 확인하지 못했습니다.")
+          setScanState("error")
           stopCamera()
           return
         }
@@ -100,11 +109,16 @@ export default function QRScanner({ onBack, onDetected }: {
   // Demo: simulate a detected QR in environments without camera
   async function simulateScan() {
     const token = localStorage.getItem("unwork.latestQrToken") || ""
-    const data = await parseQR(token)
-    if (!data) { setScanState("error"); return }
-    setScanState("detected")
-    setDetected(data)
-    stopCamera()
+    try {
+      const data = await parseQR(token)
+      if (!data) throw new Error("QR 코드를 확인하지 못했습니다.")
+      setScanState("detected")
+      setDetected(data)
+      stopCamera()
+    } catch (cause) {
+      setErrorMessage(cause instanceof Error ? cause.message : "QR 코드를 확인하지 못했습니다.")
+      setScanState("error")
+    }
   }
 
   if (detected && scanState === "detected") {
@@ -214,8 +228,8 @@ export default function QRScanner({ onBack, onDetected }: {
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <p className="text-white font-semibold">카메라에 접근할 수 없습니다</p>
-            <p className="text-white/50 text-xs">브라우저 설정에서 카메라 권한을 허용하거나 아래 시연 버튼을 사용하세요.</p>
+            <p className="text-white font-semibold">{errorMessage || "QR 코드를 확인하지 못했습니다."}</p>
+            <p className="text-white/50 text-xs">카메라 권한을 확인하거나 새로운 QR 코드를 발급받은 뒤 다시 시도하세요.</p>
           </div>
         )}
       </div>
