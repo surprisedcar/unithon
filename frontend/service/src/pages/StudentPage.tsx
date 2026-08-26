@@ -271,8 +271,8 @@ function AppConsentScreen({ onNext }: { onNext: () => void }) {
   ]
 
   return (
-    <div className="flex flex-col min-h-full bg-[#f7f9fc]">
-      <div className="flex-1 overflow-y-auto px-6 pt-16 pb-8">
+    <div className="h-full min-h-0 overflow-y-auto bg-[#f7f9fc]">
+      <div className="px-6 pt-16 pb-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">
           개인정보
           <br />
@@ -373,7 +373,7 @@ function AppConsentScreen({ onNext }: { onNext: () => void }) {
         </button>
       </div>
 
-      <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+      <div className="px-6 pb-12 pt-4 bg-white border-t border-gray-100">
         <button
           onClick={onNext}
           disabled={!checked}
