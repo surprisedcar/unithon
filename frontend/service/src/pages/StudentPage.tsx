@@ -16,40 +16,17 @@ interface LeaveRecord {
   submittedAt: string
 }
 
-const records: LeaveRecord[] = [
-  {
-    id: "1",
-    date: "2026.08.22",
-    hospital: "연세세브란스병원",
-    diagnosis: "급성 인후염",
-    status: "완료",
-    submittedAt: "2026.08.22 14:32",
-  },
-  {
-    id: "2",
-    date: "2026.08.15",
-    hospital: "서울대학교병원",
-    diagnosis: "위장염",
-    status: "완료",
-    submittedAt: "2026.08.15 11:18",
-  },
-  {
-    id: "3",
-    date: "2026.07.30",
-    hospital: "가톨릭대학교서울성모병원",
-    diagnosis: "독감 (인플루엔자)",
-    status: "완료",
-    submittedAt: "2026.07.30 09:55",
-  },
-  {
-    id: "4",
-    date: "2026.07.10",
-    hospital: "고려대학교안암병원",
-    diagnosis: "급성 기관지염",
-    status: "완료",
-    submittedAt: "2026.07.10 16:40",
-  },
-]
+function toLeaveRecord(visit: StudentVisit): LeaveRecord {
+  const createdAt = new Date(visit.createdAt)
+  return {
+    id: visit.visitId,
+    date: createdAt.toLocaleDateString("ko-KR"),
+    hospital: visit.hospitalName,
+    diagnosis: "상세 의료정보 미수집",
+    status: visit.status === "COMPLETED" ? "완료" : "처리중",
+    submittedAt: createdAt.toLocaleString("ko-KR"),
+  }
+}
 
 const hospitals = [
   {
@@ -154,8 +131,8 @@ function AppLoginScreen({ onNext }: { onNext: (student: StudentInfo) => void }) 
   }
 
   return (
-    <div className="flex flex-col min-h-full bg-[#f7f9fc]">
-      <div className="flex-1 overflow-y-auto px-6 pt-16 pb-8">
+    <div className="h-full min-h-0 overflow-y-auto bg-[#f7f9fc]">
+      <div className="px-6 pt-16 pb-8">
         <div className="flex items-center gap-3 mb-8 p-4 bg-white rounded-2xl border border-gray-100">
           <div className="w-11 h-11 rounded-xl bg-brand-600 flex items-center justify-center shrink-0">
             <span className="text-white font-bold text-sm">숭</span>
@@ -218,7 +195,7 @@ function AppLoginScreen({ onNext }: { onNext: (student: StudentInfo) => void }) 
         </div>
       </div>
 
-      <div className="px-6 pb-10 pt-4 bg-white border-t border-gray-100">
+      <div className="px-6 pb-12 pt-4 bg-white border-t border-gray-100">
         <button
           onClick={handleSubmit}
           disabled={!valid || loading}
@@ -392,10 +369,40 @@ function AppConsentScreen({ onNext }: { onNext: () => void }) {
 
 function HomeScreen({ onNavigate, student }: { onNavigate: (s: Screen) => void; student: StudentInfo }) {
   const [showNotif, setShowNotif] = useState(false)
+  const [recentVisits, setRecentVisits] = useState<StudentVisit[]>([])
+  const [recentLoading, setRecentLoading] = useState(true)
+  const [recentError, setRecentError] = useState("")
+
+  useEffect(() => {
+    let cancelled = false
+    setRecentLoading(true)
+    getStudentVisits(student.studentId)
+      .then((visits) => {
+        if (cancelled) return
+        setRecentVisits(
+          [...visits]
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 5),
+        )
+        setRecentError("")
+      })
+      .catch((cause) => {
+        if (cancelled) return
+        console.error("최근 처리 내역 조회 실패", cause)
+        setRecentError(cause instanceof Error ? cause.message : "최근 처리 내역을 불러오지 못했습니다.")
+      })
+      .finally(() => {
+        if (!cancelled) setRecentLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [student.studentId])
+
+  const recentRecords = recentVisits.map(toLeaveRecord)
 
   return (
-    <div className="flex flex-col min-h-full bg-[#f7f9fc]">
-      <div className="bg-white px-5 pt-12 pb-5 border-b border-gray-100">
+    <div className="flex h-full min-h-0 flex-col bg-[#f7f9fc]">
+      <div className="shrink-0 bg-white px-5 pt-12 pb-5 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 font-medium tracking-wide">
@@ -453,7 +460,7 @@ function HomeScreen({ onNavigate, student }: { onNavigate: (s: Screen) => void; 
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-6 pb-24 space-y-5">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white shadow-lg shadow-brand-200">
           <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/5" />
           <div className="absolute -bottom-12 -right-4 w-48 h-48 rounded-full bg-white/5" />
@@ -550,7 +557,12 @@ function HomeScreen({ onNavigate, student }: { onNavigate: (s: Screen) => void; 
           </div>
 
           <div className="space-y-2.5">
-            {records.slice(0, 3).map((r) => (
+            {recentLoading && <p className="py-4 text-center text-sm text-gray-400">최근 처리 내역을 불러오는 중입니다…</p>}
+            {recentError && <p className="py-4 text-center text-sm text-red-600">{recentError}</p>}
+            {!recentLoading && !recentError && recentRecords.length === 0 && (
+              <p className="py-4 text-center text-sm text-gray-400">아직 처리 내역이 없습니다.</p>
+            )}
+            {recentRecords.map((r) => (
               <div
                 key={r.id}
                 className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-4"
