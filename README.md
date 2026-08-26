@@ -38,6 +38,72 @@ Visit 생성
 보건결석 처리 완료
 ```
 
+---
+
+## Deployment (Vercel + Render)
+
+The repository contains two independent Vite frontends and one Spring Boot backend.
+Deploy each frontend as a separate Vercel project when both the service UI and the
+school UI are required.
+
+### Backend on Render
+
+Create a Render PostgreSQL database and a Web Service with these settings:
+
+```text
+Language: Docker
+Branch: feature/deployment
+Region: Singapore (use the same region for PostgreSQL)
+Root Directory: backend/spring-server
+Dockerfile Path: ./Dockerfile
+Health Check Path: /api/v1/health
+```
+
+The Dockerfile uses Java 21 for both the Gradle build stage and the smaller JRE
+runtime stage. Render builds and starts the image from the Dockerfile, so Build
+Command and Start Command are not entered separately.
+
+Set the following environment variables in the Render Web Service. The database
+URL must be a JDBC URL (it starts with `jdbc:postgresql://`), not a `postgres://`
+URL.
+
+```text
+DATABASE_URL=jdbc:postgresql://<internal-host>:5432/<database>
+DATABASE_USERNAME=<database-user>
+DATABASE_PASSWORD=<database-password>
+FRONTEND_URL=https://<service-project>.vercel.app,https://<school-project>.vercel.app
+```
+
+Render supplies `PORT`; the application uses it automatically and falls back to
+`8080` locally. Never commit the production values above.
+
+### Frontends on Vercel
+
+Create one Vercel project per frontend using these settings:
+
+| Project | Root Directory | Build Command | Output Directory |
+| --- | --- | --- | --- |
+| Service UI | `frontend/service` | `npm run build` | `dist` |
+| School UI | `frontend/school` | `npm run build` | `dist` |
+
+Set this environment variable in both projects, then redeploy:
+
+```text
+VITE_API_BASE_URL=https://<backend-service>.onrender.com
+```
+
+The local default remains `http://localhost:8080`. The service frontend also
+supports `VITE_HOSPITAL_ID` and `VITE_UNIVERSITY_CODE`; the school frontend
+supports `VITE_UNIVERSITY_ID`, as documented in their `.env.example` files.
+
+### Deployment smoke test
+
+1. Open `https://<backend-service>.onrender.com/api/v1/health` and confirm an
+   `UP` response.
+2. Open each Vercel URL and complete the student, hospital, and university flow.
+3. Confirm the browser has no CORS errors and that an invalid repeated state
+   transition returns HTTP `409`.
+
 Visit은 처리 단계에 따라 상태가 변경되며, 잘못된 순서의 요청은 서버에서 차단합니다.
 
 ---

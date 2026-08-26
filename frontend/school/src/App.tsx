@@ -3,6 +3,7 @@ import TimetablePage from "@/components/TimetablePage";
 import GradesPage from "@/components/GradesPage";
 import TuitionPage from "@/components/TuitionPage";
 import { completeUniversityVisit, getUniversityVisits, type UniversityVisit } from "@/api/universityApi";
+import { loginStudent, type StudentInfo } from "@/api/studentApi";
 
 type Tab = "timetable" | "absence" | "grades" | "tuition";
 
@@ -57,6 +58,9 @@ function Sidebar({ active, onChange }: { active: Tab; onChange: (t: Tab) => void
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("absence");
+  const [student, setStudent] = useState<StudentInfo | null>(null);
+
+  if (!student) return <LoginScreen onLogin={setStudent} />;
 
   return (
     <div className="min-h-screen bg-[#f5f6f8] text-gray-800">
@@ -97,9 +101,9 @@ export default function App() {
 
         <div className="ml-auto text-sm text-blue-200 flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-xs font-semibold">
-            정
+            {student.name.charAt(0)}
           </div>
-          <span>정유채 · 2023123456</span>
+          <span>{student.name} · {student.studentNumber}</span>
         </div>
       </header>
 
@@ -110,6 +114,84 @@ export default function App() {
         {tab === "absence" && <AbsenceWrapper />}
         {tab === "grades" && <GradesPage />}
         {tab === "tuition" && <TuitionPage />}
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen({ onLogin }: { onLogin: (student: StudentInfo) => void }) {
+  const [id, setId] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    if (!id.trim() || !password.trim() || loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const student = await loginStudent(id.trim(), password.trim());
+      onLogin(student);
+    } catch (cause) {
+      console.error("학생 로그인 실패", cause);
+      setError(cause instanceof TypeError
+        ? "학생 정보를 불러오지 못했습니다."
+        : "아이디 또는 비밀번호가 올바르지 않습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f5f6f8] flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-[#1f3a5f] text-white px-8 py-7 flex items-center gap-4">
+          <div className="w-11 h-11 bg-white text-[#1f3a5f] rounded flex items-center justify-center font-bold text-xl">S</div>
+          <div>
+            <h1 className="font-semibold tracking-wide">SOONGSIL UNIVERSITY</h1>
+            <p className="text-xs text-blue-200 tracking-widest">u-SAINT 학사정보시스템</p>
+          </div>
+        </div>
+        <div className="p-8">
+          <h2 className="text-xl font-semibold text-gray-900">학생 로그인</h2>
+          <p className="text-sm text-gray-500 mt-2 mb-7">학교 계정 정보를 입력해주세요.</p>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">아이디</label>
+              <input
+                value={id}
+                onChange={(event) => setId(event.target.value.replace(/\D/g, ""))}
+                placeholder="학번"
+                autoComplete="username"
+                className="w-full border border-gray-300 rounded-md px-4 py-3 text-sm outline-none focus:border-[#1f3a5f] focus:ring-1 focus:ring-[#1f3a5f]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">비밀번호</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                onKeyDown={(event) => { if (event.key === "Enter") void handleSubmit(); }}
+                placeholder="비밀번호"
+                autoComplete="current-password"
+                className="w-full border border-gray-300 rounded-md px-4 py-3 text-sm outline-none focus:border-[#1f3a5f] focus:ring-1 focus:ring-[#1f3a5f]"
+              />
+            </div>
+          </div>
+          {error && <p className="mt-4 text-sm text-red-600" role="alert">{error}</p>}
+          <button
+            onClick={() => void handleSubmit()}
+            disabled={!id.trim() || !password.trim() || loading}
+            className="w-full mt-6 bg-[#1f3a5f] hover:bg-[#162d4a] disabled:bg-gray-300 text-white py-3 rounded-md text-sm font-medium transition-colors"
+          >
+            {loading ? "로그인 중…" : "로그인"}
+          </button>
+          <div className="mt-5 border-t border-gray-100 pt-4 text-xs text-gray-500">
+            <p className="font-medium text-gray-600">시연용 계정</p>
+            <p className="mt-1 font-mono">학번 20231234 / 비밀번호 1234</p>
+          </div>
+        </div>
       </div>
     </div>
   );
